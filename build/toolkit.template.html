@@ -1,0 +1,1027 @@
+<title>Transit Heat Intelligence</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+:root{
+ --nav:#0F1D30;--nav-ink:#EAF0F8;--nav-mut:#93A4BE;--logo:#F4C13D;
+ --bg:#FFFFFF;--band:#F5F6F8;--ink:#1B2431;--muted:#69727F;--faint:#A6AEBA;--rule:#E7E9EE;
+ --heat:#DA3B24;--red:#DA3B24;--yel:#DFA019;--grn:#2E9E6B;--cool:#2C6E8F;--amber:#B67A18;--good:#2E9E6B;
+ --water:#DBE6EC;--land:#F1F2EF;--land-line:#DEE3E6;--park:#C9DDBE;--road:#D2D6DD;--road-maj:#AEB4BE;--r:8px;--sh:0 1px 2px rgba(20,30,50,.05);}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+ --nav:#0A121D;--nav-ink:#E9ECF1;--nav-mut:#8A99B2;--bg:#12151A;--band:#191D24;--ink:#E9ECF1;--muted:#98A0AC;--faint:#5C6675;--rule:#262B33;
+ --heat:#F0604A;--red:#F0604A;--yel:#E6B24C;--grn:#42B080;--cool:#63A6C7;--good:#42B080;--water:#0E1822;--land:#1B222B;--land-line:#28323C;--park:#22331F;--road:#2E3640;--road-maj:#454F5C;--sh:0 1px 2px rgba(0,0,0,.3);}}
+:root[data-theme="dark"]{
+ --nav:#0A121D;--nav-ink:#E9ECF1;--nav-mut:#8A99B2;--bg:#12151A;--band:#191D24;--ink:#E9ECF1;--muted:#98A0AC;--faint:#5C6675;--rule:#262B33;
+ --heat:#F0604A;--red:#F0604A;--yel:#E6B24C;--grn:#42B080;--cool:#63A6C7;--good:#42B080;--water:#0E1822;--land:#1B222B;--land-line:#28323C;--park:#22331F;--road:#2E3640;--road-maj:#454F5C;--sh:0 1px 2px rgba(0,0,0,.3);}
+*{box-sizing:border-box}html,body{margin:0}
+html,body{max-width:100%;overflow-x:hidden}
+body{background:var(--bg);color:var(--ink);font-family:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.5;-webkit-font-smoothing:antialiased;font-feature-settings:"cv05","ss01"}
+.mono{font-variant-numeric:tabular-nums}
+button,input,select{font:inherit}button{cursor:pointer}
+/* top bar */
+.top{position:sticky;top:0;z-index:30;background:var(--nav);color:var(--nav-ink);display:flex;align-items:center;gap:26px;padding:0 22px;height:56px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:11px}
+.brand .m{width:26px;height:26px;border-radius:7px;background:var(--logo);color:#1a1206;display:grid;place-items:center;font-weight:800;font-size:14px}
+.brand h1{font-size:15px;margin:0;font-weight:700;letter-spacing:-.01em;color:var(--nav-ink)}
+.brand small{display:block;font-size:10.5px;color:var(--nav-mut);margin-top:0}
+.tabs{display:flex;gap:2px;align-self:stretch;align-items:center}
+.tabs button{border:0;background:none;color:var(--nav-mut);font-size:13.5px;font-weight:500;padding:0 12px;height:100%;border-bottom:2px solid transparent}
+.tabs button.on{color:#fff;border-bottom-color:var(--logo);font-weight:600}
+.tabs button:hover{color:var(--nav-ink)}
+.top-actions{margin-left:auto;display:flex;gap:8px;align-items:center}
+.top-actions button{border:1px solid rgba(255,255,255,.22);background:transparent;color:var(--nav-ink);border-radius:7px;padding:7px 12px;font-size:12.5px;font-weight:500}
+.top-actions .primary{background:#fff;color:var(--nav);border-color:#fff;font-weight:600}
+.top-actions button:hover{border-color:#fff}
+.wrap{max-width:1400px;margin:0 auto;padding:0 22px}
+section.tab{display:none;padding:22px 0 72px}section.tab.on{display:block}
+/* dashboard */
+.dash{display:grid;grid-template-columns:212px 1fr 352px;gap:18px;align-items:stretch;height:calc(100vh - 56px - 26px)}
+#prioritize{padding:13px 0}
+.side{overflow-y:auto;max-height:100%;padding-right:4px}
+.dash>main{display:flex;flex-direction:column;min-height:0;min-width:0}
+.side,.detail,.tablecard,.mapbox,.kpi{min-width:0}
+.kpis{flex:0 0 auto}
+.mapbox{flex:0 0 46%;min-height:0}
+.tablecard{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+.tablecard .tscroll{flex:1 1 auto;min-height:0;overflow:auto}
+@media(max-width:1160px){.dash{grid-template-columns:1fr;height:auto}#prioritize{padding:20px 0}.mapbox{flex:none;aspect-ratio:1.3}.tablecard{flex:none}.tablecard .tscroll{overflow:visible}.side,.detail{max-height:none!important}}
+.side .h{font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:11px 0 5px}
+.side .h:first-child{margin-top:2px}
+.decade{display:flex;background:var(--band);border-radius:var(--r);padding:3px;gap:2px}
+.decade button{flex:1;border:0;background:none;color:var(--muted);font-size:12.5px;font-weight:600;padding:7px 4px;border-radius:6px}
+.decade button.on{background:var(--bg);color:var(--ink);box-shadow:var(--sh)}
+.hint{font-size:11.5px;color:var(--muted);margin-top:9px;line-height:1.5}.hint b{color:var(--ink)}
+/* multi-select dropdowns */
+.msel{position:relative;margin-bottom:2px}
+.mselbtn{width:100%;border:1px solid var(--rule);background:var(--bg);border-radius:7px;padding:8px 11px;font-size:12.5px;color:var(--ink);display:flex;align-items:center;justify-content:space-between;gap:8px;font-weight:600}
+.mselbtn:hover{border-color:var(--ink)}
+.mselbtn .cv{font-weight:500;color:var(--muted)}
+.mselbtn .ar{color:var(--faint);font-size:9px}
+.mselpanel{position:absolute;left:0;right:0;top:calc(100% + 4px);background:var(--bg);border:1px solid var(--rule);border-radius:8px;box-shadow:var(--sh);z-index:25;padding:7px;max-height:250px;overflow:auto}
+.mselpanel .actions{display:flex;gap:6px;padding:1px 2px 7px;border-bottom:1px solid var(--rule);margin-bottom:5px}
+.mselpanel .actions button{flex:1;border:1px solid var(--rule);background:var(--bg);border-radius:6px;font-size:11px;padding:5px;color:var(--muted);font-weight:600}
+.mselpanel .actions button:hover{border-color:var(--ink);color:var(--ink)}
+.mselpanel .grid{display:grid;grid-template-columns:1fr 1fr;gap:1px}
+.mopt{display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:6px;font-size:12.5px;cursor:pointer}
+.mopt:hover{background:var(--band)}
+.mopt input{accent-color:var(--heat);margin:0}
+.mopt .mc{margin-left:auto;color:var(--faint);font-size:11px;font-variant-numeric:tabular-nums}
+/* map draw-area control */
+.drawctrl{position:absolute;left:12px;bottom:20px;display:flex;gap:6px;z-index:1000}
+.drawctrl button{border:1px solid var(--rule);background:var(--bg);border-radius:7px;padding:7px 11px;font-size:12px;font-weight:600;color:var(--ink);box-shadow:var(--sh)}
+.drawctrl button.on{background:var(--heat);color:#fff;border-color:var(--heat)}
+.drawctrl button:hover{border-color:var(--ink)}
+.drawctrl button.on:hover{border-color:#fff}
+/* kpis */
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:var(--r);overflow:hidden;margin-bottom:18px}
+@media(max-width:760px){.kpis{grid-template-columns:repeat(2,1fr)}}
+.kpi{background:var(--bg);padding:14px 16px;display:flex;flex-direction:column}
+.kpi .l{font-size:10.5px;font-weight:500;letter-spacing:.03em;color:var(--muted);line-height:1.3;min-height:2.6em}
+.kpi .v{font-size:24px;font-weight:700;letter-spacing:-.02em;margin-top:auto;padding-top:6px;line-height:1.05;font-variant-numeric:tabular-nums;white-space:nowrap}
+.kpi .s{font-size:11px;color:var(--muted);margin-top:5px;min-height:1.4em}
+/* map */
+.mapbox{border:1px solid var(--rule);border-radius:var(--r);position:relative;background:var(--band);overflow:hidden}
+#lmap{width:100%;height:100%;background:var(--band)}
+.leaflet-container{font-family:"Inter",sans-serif;background:var(--band)}
+.leaflet-div-icon,.stn{background:transparent;border:none}
+.stn svg{overflow:visible}
+.leaflet-tooltip{font-size:11.5px;font-weight:500;border:none;box-shadow:var(--sh);background:var(--ink);color:var(--bg);padding:4px 8px}
+.leaflet-tooltip-top:before{border-top-color:var(--ink)}
+.leaflet-bar a{background:var(--bg);color:var(--ink);border-color:var(--rule)}.leaflet-bar a:hover{background:var(--band)}
+.water{fill:var(--water)}
+.region{fill:var(--land);opacity:.82;stroke:none}
+.mlegend .shp{display:inline-block;width:12px;text-align:center;color:var(--muted);font-size:10px}
+.land{fill:var(--land);stroke:var(--land-line);stroke-width:1;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.road{fill:none;stroke:var(--road);stroke-linejoin:round;stroke-linecap:round;vector-effect:non-scaling-stroke}
+.road.r1{stroke:var(--road-maj);stroke-width:1.7}
+.road.r2{stroke:var(--road-maj);stroke-width:1.05}
+.road.r3{stroke:var(--road);stroke-width:0.6}
+.bul{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;font-size:11px;font-weight:700;font-family:Helvetica,Arial,sans-serif;margin-right:2px;vertical-align:middle}
+.dot{stroke:var(--bg);stroke-width:1;cursor:pointer;vector-effect:non-scaling-stroke}.dot:hover{stroke:var(--ink)}.dot.sel{stroke:var(--ink);stroke-width:2}
+.mapctrl{position:absolute;left:12px;top:12px;display:flex;flex-direction:column;gap:6px;z-index:4}
+.mapctrl button{width:30px;height:30px;border:1px solid var(--rule);background:var(--bg);border-radius:6px;font-size:17px;color:var(--ink);box-shadow:var(--sh);line-height:1;display:grid;place-items:center}
+.mapctrl button:hover{border-color:var(--ink)}
+.park{fill:var(--park);stroke:none}
+.hvi path{stroke:none;fill-opacity:.6}
+.labels .lb{fill:var(--muted);font-weight:700;text-transform:uppercase;paint-order:stroke;stroke:var(--bg);opacity:.92}
+.labels .ln{fill:var(--muted);font-weight:600;paint-order:stroke;stroke:var(--bg);opacity:.8}
+.layerpanel{position:absolute;left:52px;top:12px;background:var(--bg);border:1px solid var(--rule);border-radius:7px;padding:9px 11px;box-shadow:var(--sh);font-size:12px;z-index:6}
+.layerpanel label{display:flex;align-items:center;gap:8px;padding:3px 0;white-space:nowrap;cursor:pointer}
+.layerpanel .sw{width:12px;height:12px;border-radius:3px;display:inline-block}
+.layerpanel input{accent-color:var(--heat)}
+.mlegend{position:absolute;right:12px;top:12px;background:var(--bg);border:1px solid var(--rule);border-radius:7px;padding:10px 12px;font-size:11px;box-shadow:var(--sh);z-index:1000}
+.mlegend .lyrow{display:flex;align-items:center;gap:7px;margin-top:9px;padding-top:8px;border-top:1px solid var(--rule);cursor:pointer;color:var(--muted)}
+.mlegend .lyrow input{accent-color:var(--heat);margin:0}
+.mlegend .lyrow+.lyrow{border-top:0;margin-top:3px;padding-top:0}
+.mlegend b{color:var(--ink);font-size:10.5px}.mlegend .r{display:flex;align-items:center;gap:7px;margin:4px 0;color:var(--muted)}.mlegend .d{width:9px;height:9px;border-radius:50%}
+.tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);font-size:12px;padding:6px 9px;border-radius:6px;opacity:0;transform:translate(-50%,-125%);transition:opacity .1s;white-space:nowrap;z-index:5;font-variant-numeric:tabular-nums}
+/* table */
+.tablecard{border:1px solid var(--rule);border-radius:var(--r);margin-top:18px;overflow:hidden}
+.tablehead{display:flex;align-items:center;justify-content:space-between;padding:13px 15px;border-bottom:1px solid var(--rule);flex-wrap:wrap;gap:8px}
+.tablehead b{font-size:14px;font-weight:600}
+.tablehead .tools{display:flex;gap:8px}.tablehead select,.tablehead button{border:1px solid var(--rule);background:var(--bg);color:var(--ink);border-radius:7px;padding:6px 10px;font-size:12px}
+.tscroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th,td{padding:10px 12px;border-bottom:1px solid var(--rule);text-align:left;white-space:nowrap}
+th{font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:600;background:var(--band)}
+tr.row{cursor:pointer}tr.row:hover{background:var(--band)}tr.row.sel{background:var(--band)}
+.tier{width:10px;height:10px;border-radius:50%;display:inline-block;vertical-align:middle}
+.tred{background:var(--red)}.tamber{background:var(--yel)}.tgreen{background:var(--grn)}.tnone{background:var(--faint)}
+.rt{font-size:10.5px;color:var(--muted);font-weight:500}
+.pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10.5px;font-weight:600}
+.pill.sup{background:rgba(218,59,36,.1);color:var(--heat)}.pill.att{background:rgba(46,158,107,.12);color:var(--good)}.pill.neu{background:var(--band);color:var(--muted)}
+.exp{font-weight:600}.exp.platform{color:var(--heat)}.exp.wait{color:var(--amber)}.exp.walk{color:var(--cool)}
+.fnum{font-weight:600;font-variant-numeric:tabular-nums}
+/* detail panel */
+.detail{border:1px solid var(--rule);border-radius:var(--r);box-shadow:var(--sh);max-height:100%;overflow-y:auto;display:flex;flex-direction:column}
+.detail .empty{color:var(--muted);font-size:13px;text-align:center;padding:44px 20px}
+.dpad{padding:15px 16px 18px}
+.dhead{display:flex;align-items:center;justify-content:space-between}
+.dback{border:0;background:none;color:var(--cool);font-weight:600;font-size:12.5px;padding:0}
+.dback:hover{text-decoration:underline}
+.dclose{border:0;background:none;color:var(--muted);font-size:20px;line-height:1;padding:0 2px}
+.dclose:hover{color:var(--ink)}
+.dname2{font-size:20px;font-weight:800;letter-spacing:-.02em;line-height:1.14;margin-top:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dstar{margin-left:auto;border:0;background:none;font-size:19px;color:var(--faint);line-height:1;padding:0}
+.dstar.on{color:var(--yel)}
+.dloc{font-size:13px;color:var(--muted);margin-top:5px}
+.dsubt{display:flex;align-items:center;gap:11px;margin:14px 0 2px}
+.dbadge{border:1.4px solid;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:700;letter-spacing:.04em}
+.dbadge.sup{color:var(--heat);border-color:var(--heat)}
+.dbadge.att{color:var(--good);border-color:var(--good)}
+.dbadge.neu{color:var(--muted);border-color:var(--rule)}
+.dsubt .cap{font-size:13.5px;color:var(--muted)}
+.mrow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 0;border-top:1px solid var(--rule)}
+.mrow .k{font-size:14px;font-weight:600}
+.mrow .val{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums}
+.mrow .val.xl{font-size:27px;font-weight:800;letter-spacing:-.02em}
+.mexp{display:flex;align-items:center;gap:8px;font-size:17px;font-weight:700}.mexp .em{font-size:18px}
+.dtabs{display:flex;gap:1px;border-bottom:1px solid var(--rule);margin-top:8px;overflow-x:auto;scrollbar-width:none}
+.dtabs::-webkit-scrollbar{display:none}
+.dtab{border:0;background:none;color:var(--muted);font-size:12.5px;font-weight:600;padding:11px 8px;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.dtab.on{color:var(--ink);border-bottom-color:var(--nav)}
+.dtab:hover{color:var(--ink)}
+.dsec-h{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:18px 0 10px}
+.dsec-h .sm{font-weight:500;text-transform:none;letter-spacing:0;color:var(--faint)}
+.reccard{border:1px solid rgba(218,59,36,.28);border-radius:11px;overflow:hidden}
+.recname{background:rgba(218,59,36,.06);padding:13px 15px}
+.recname .k{font-size:12px;color:var(--heat);font-weight:600}
+.recname .v{font-size:16px;font-weight:700;margin-top:3px}.recname .v b{color:var(--heat)}
+.recrows{padding:2px 15px 6px}
+.recrow{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--rule);font-size:13.5px}
+.recrow:first-child{border-top:0}
+.recrow .ic{width:17px;text-align:center;color:var(--muted);flex:0 0 17px}
+.recrow .rk{color:var(--muted)}
+.recrow .rv{margin-left:auto;font-weight:700;text-align:right}
+.recrow .rv.pri{color:var(--heat)}
+.confbar{display:inline-flex;gap:3px;margin-left:10px;vertical-align:middle}
+.confbar i{width:17px;height:9px;border-radius:2px;background:var(--rule)}
+.confbar i.on{background:var(--grn)}
+.fbchips{display:flex;flex-wrap:wrap;gap:7px}
+.fbchips span{border:1px solid var(--rule);border-radius:18px;padding:6px 12px;font-size:12.5px;background:var(--bg)}
+.fbchips span.alt{background:rgba(124,92,178,.08);border-color:rgba(124,92,178,.22)}
+.fbmore{display:block;text-align:center;color:var(--cool);font-weight:600;font-size:13px;margin-top:13px;border:0;background:none;width:100%;padding:4px}
+.fbmore:hover{text-decoration:underline}
+.whytxt{font-size:13.5px;color:var(--muted);line-height:1.6}.whytxt b{color:var(--ink);font-weight:600}
+.reportbtn{width:100%;border:1px solid var(--rule);background:var(--bg);color:var(--ink);border-radius:9px;padding:13px;font-weight:700;font-size:13.5px;margin-top:18px;display:flex;align-items:center;justify-content:center;gap:8px}
+.reportbtn:hover{border-color:var(--nav)}
+.evk{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:9px;overflow:hidden;margin-bottom:14px}
+.evk .c{background:var(--bg);padding:11px 13px}
+.evk .c .k{font-size:9.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:600}
+.evk .c .v{font-size:17px;font-weight:700;margin-top:3px;font-variant-numeric:tabular-nums}
+.pstep{border:1px solid var(--rule);border-radius:9px;padding:11px 13px;margin-bottom:9px}
+.pstep .pn{font-family:ui-monospace,Menlo,monospace;font-size:10px;color:var(--heat);font-weight:700;letter-spacing:.04em}
+.pstep .pt{font-weight:700;font-size:13.5px;margin-top:3px}
+.pstep .pd{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.5}
+.decay{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:9px;overflow:hidden;margin-top:6px}
+.decay div{background:var(--bg);padding:9px 6px;text-align:center}
+.decay .yr{font-size:10px;color:var(--muted);font-weight:500}.decay .n{font-size:16px;font-weight:700;color:var(--heat);margin-top:2px;font-variant-numeric:tabular-nums}
+.navrow{display:grid;grid-template-columns:1fr 1fr;gap:11px;padding:13px 16px;border-top:1px solid var(--rule);margin-top:auto;position:sticky;bottom:0;background:var(--bg)}
+.navbtn{border:1px solid var(--rule);background:var(--bg);color:var(--ink);border-radius:9px;padding:12px;font-weight:600;font-size:13px;display:flex;align-items:center;justify-content:center;gap:6px}
+.navbtn:hover{border-color:var(--nav)}
+.navbtn:disabled{opacity:.4;cursor:default}
+/* editorial content tabs */
+.lede{max-width:62ch;color:var(--muted);font-size:16px;margin:4px 0 0}
+.kick{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--heat)}
+#evidence,#diagnosis,#playbook,#engage{max-width:1060px}
+h2.big2{font-size:clamp(20px,2.4vw,26px);line-height:1.14;letter-spacing:-.02em;font-weight:700;margin:7px 0 6px;max-width:34ch}
+h2.big2 em{font-style:normal;color:var(--heat)}
+.nums{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);border-radius:var(--r);overflow:hidden;margin:20px 0 4px}
+.num{background:var(--bg);padding:14px 16px}
+.num .v{font-size:27px;font-weight:700;letter-spacing:-.02em;line-height:1;font-variant-numeric:tabular-nums}.num .v small{font-size:14px;color:var(--muted);font-weight:600}
+.num .k{font-size:11.5px;color:var(--muted);margin-top:6px;line-height:1.4}
+.sec2{border:1px solid var(--rule);border-radius:var(--r);padding:16px 18px;margin-top:20px}
+.sec2 h3{font-size:15px;font-weight:600;margin:0 0 3px;letter-spacing:-.01em}
+.sec2 .l{font-size:13px;color:var(--muted);margin:0 0 14px;max-width:62ch}
+.sec2 .note{font-size:12px;color:var(--muted);margin:10px 0 0}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:20px}
+@media(max-width:820px){.two{grid-template-columns:1fr}}
+.two .sec2{margin-top:0}
+.eqn{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;background:var(--band);border-radius:6px;padding:11px 13px;font-size:12px;line-height:1.65;margin:4px 0 12px;color:var(--ink);overflow-x:auto}
+.eqn b{color:var(--heat);font-weight:600}
+.mlist{display:flex;flex-direction:column;gap:9px;font-size:13px;color:var(--muted);line-height:1.5}
+.mlist b{color:var(--ink);font-weight:600}
+.srcs2{display:flex;flex-direction:column;gap:13px}
+.srcs2>div{font-size:12.5px;line-height:1.5}
+.srcs2 b{display:block;color:var(--ink);font-weight:600;font-size:13px}
+.srcs2 span{color:var(--muted)}.srcs2 code{font-family:ui-monospace,Menlo,monospace;font-size:11px;background:var(--band);padding:1px 5px;border-radius:3px}
+.caveat{border-left:3px solid var(--heat)}
+.chapter{display:flex;align-items:center;gap:14px;margin:42px 0 2px;padding-top:26px;border-top:2px solid var(--ink)}
+.cnum{font-family:ui-monospace,Menlo,monospace;font-size:22px;font-weight:700;color:var(--heat);line-height:1}
+.clabel{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.ctitle{font-size:clamp(18px,2.2vw,23px);font-weight:700;margin:2px 0 0;letter-spacing:-.01em}
+.lede2{font-size:14px;color:var(--muted);margin:8px 0 0;max-width:66ch}
+.eqn sup{font-size:9px}
+/* analysis report */
+.rpt{max-width:760px;height:100%;overflow-y:auto;padding:2px 22px 40px 0;scrollbar-width:thin}
+.reyebrow{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.rtitle{font-size:clamp(21px,2.6vw,27px);font-weight:700;line-height:1.2;letter-spacing:-.015em;margin:7px 0 8px;max-width:32ch}
+.rmeta{font-size:12px;color:var(--muted);font-family:ui-monospace,Menlo,monospace;padding-bottom:16px;border-bottom:1px solid var(--rule)}
+.rh{font-size:15.5px;font-weight:700;margin:28px 0 8px;letter-spacing:-.01em}
+.rsub{font-size:13.5px;font-weight:700;margin:22px 0 5px}
+.rp{font-size:14px;line-height:1.64;color:var(--ink);margin:0 0 13px;max-width:76ch}
+.rp b{font-weight:600}.rp i{font-style:italic}
+.rul{font-size:14px;line-height:1.6;color:var(--ink);margin:2px 0 13px;padding-left:18px;max-width:76ch}
+.rul li{margin-bottom:8px}.rul b{font-weight:600}
+.rfig{margin:16px 0 20px}
+.rfig .chartbox{border:1px solid var(--rule);border-radius:var(--r);padding:12px 14px 6px}
+.rfig figcaption{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.5;max-width:78ch}
+.rfig figcaption b{color:var(--ink);font-weight:600}
+.rtwrap{overflow-x:auto;margin:4px 0 8px}
+.rtable{border-collapse:collapse;font-size:12.5px;width:100%;max-width:700px}
+.rtable th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:600;border-bottom:1.5px solid var(--ink);padding:7px 11px;white-space:nowrap}
+.rtable td{padding:6px 11px;border-bottom:1px solid var(--rule);font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--ink)}
+.rtable td.l,.rtable th.l{white-space:nowrap;font-weight:500}
+.rpt .srcs2{margin:8px 0 4px}
+/* report layout + table of contents — one page, only the body scrolls */
+section.tab#analysis{padding:0;height:calc(100vh - 56px);overflow:hidden}
+.rlayout{display:grid;grid-template-columns:206px minmax(0,1fr);gap:38px;align-items:start;height:100%;padding-top:22px}
+@media(max-width:900px){.rlayout{grid-template-columns:1fr;gap:0}.rtoc{display:none}}
+.rtoc{align-self:start}
+.rtoc .tt{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--faint);margin:0 0 10px 10px}
+.rtoc a{display:block;color:var(--muted);text-decoration:none;padding:6px 11px;border-left:2px solid var(--rule);line-height:1.35;font-size:12.5px}
+.rtoc a:hover{color:var(--ink)}
+.rtoc a.on{color:var(--ink);border-left-color:var(--heat);font-weight:600}
+/* interactive decision tree */
+.dtree{border:1px solid var(--rule);border-radius:10px;padding:16px 18px 18px;margin-top:6px}
+.dthint{font-size:12px;color:var(--muted);margin:0 0 14px}
+.dtlevel{margin-bottom:15px}
+.dtq{font-size:11px;font-weight:700;letter-spacing:.03em;color:var(--muted);text-transform:uppercase;margin-bottom:8px}
+.dtopts{display:flex;gap:9px;flex-wrap:wrap}
+.dopt{border:1.4px solid var(--rule);border-radius:9px;padding:9px 14px;font-size:13px;font-weight:600;background:var(--bg);color:var(--ink);display:flex;align-items:center;gap:7px}
+.dopt:hover{border-color:var(--cool)}
+.dopt.on{border-color:var(--heat);background:rgba(218,59,36,.06);color:var(--heat)}
+.dopt.on.att{border-color:var(--good);background:rgba(46,158,107,.08);color:var(--good)}
+.dtout{border-top:1px solid var(--rule);margin-top:16px;padding-top:15px}
+.dtaction{font-size:15.5px;font-weight:700;margin-bottom:9px}.dtaction b{color:var(--heat)}
+.dtaction.att b{color:var(--good)}
+.dtmeta{display:flex;gap:20px;flex-wrap:wrap;font-size:12.5px;color:var(--muted)}.dtmeta b{color:var(--ink);font-weight:600}
+.dtcount{font-size:12.5px;color:var(--muted);margin-top:11px}.dtcount b{color:var(--heat)}
+.dtshow{border:0;background:none;color:var(--cool);font-weight:600;font-size:12.5px;padding:0;margin-left:4px}.dtshow:hover{text-decoration:underline}
+.legend{display:flex;gap:18px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-bottom:12px}
+.legend .it{display:inline-flex;align-items:center;gap:7px}.legend .sq{width:11px;height:11px;border-radius:3px}.legend .sw{width:14px;height:3px}
+.chartbox{position:relative;width:100%;overflow-x:auto}svg.ch{display:block;width:100%;height:auto}
+#curves{aspect-ratio:760/330}#legs{aspect-ratio:760/460}
+.ax{fill:var(--faint);font-size:11px}.gl{stroke:var(--rule)}.base{stroke:var(--faint);stroke-dasharray:2 3}
+.lbl{font-weight:700}.cap{font-size:12px;color:var(--faint);margin-top:8px}
+/* playbook */
+.pl{display:grid;grid-template-columns:50px 1fr 120px;gap:20px;padding:17px 0;border-top:1px solid var(--rule);align-items:start}
+@media(max-width:640px){.pl{grid-template-columns:40px 1fr}.pl .tags{grid-column:1/-1;margin-left:52px}}
+.pl .ct{font-size:30px;font-weight:800;line-height:.9;font-variant-numeric:tabular-nums}.pl .ct .d{display:block;width:11px;height:11px;border-radius:3px;margin-top:8px}
+.pl .nm{font-weight:700;font-size:15px}.pl .fx{font-size:13.5px;margin-top:4px;color:var(--ink)}.pl .ev{font-size:11.5px;color:var(--muted);margin-top:6px}
+.pl .tags{font-size:11px;color:var(--muted);text-align:right;line-height:1.7}.pl .tags b{display:block;color:var(--ink);font-size:12px;font-weight:600}
+/* decision tree */
+.tree{overflow-x:auto;padding:6px 0}
+.tnode{border:1px solid var(--rule);border-radius:7px;padding:8px 12px;font-size:12.5px;display:inline-block;background:var(--bg)}
+.tnode.q{border-color:var(--nav);background:var(--nav);color:#fff;font-weight:600}
+.trow{display:flex;gap:16px;align-items:flex-start;margin:12px 0;flex-wrap:wrap}
+.tbranch{border-left:2px solid var(--rule);padding-left:15px}
+.tbranch b{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:6px;font-weight:600}
+.tact{font-size:12px;color:var(--ink);margin-top:6px}.tact .heat{color:var(--heat);font-weight:600}
+.tflow{display:flex;flex-direction:column;gap:14px;min-width:660px}
+.tnode.q.c{align-self:center}
+.tsplit{display:grid;grid-template-columns:1fr 1fr 2.3fr;gap:16px;align-items:start}
+.tsplit3{display:grid;grid-template-columns:1fr 1fr 1.25fr;gap:10px;margin-top:9px}
+.tcol{min-width:0}
+.blabel{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;margin-bottom:5px}
+.tcard{border:1px solid var(--rule);border-radius:8px;padding:9px 11px;background:var(--bg)}
+.tcard h5{font-size:12px;font-weight:700;margin:0 0 5px;display:flex;align-items:center;gap:6px}
+.tcard h5 .sw{width:10px;height:10px;border-radius:3px;display:inline-block}
+.tcard ul{margin:0;padding-left:15px;font-size:11.5px;color:var(--muted);line-height:1.5}
+.tcard.mon{border-top:3px solid var(--faint)}.tcard.att{border-top:3px solid var(--good)}
+.tcard.walk{border-top:3px solid var(--cool)}.tcard.wait{border-top:3px solid var(--amber)}.tcard.plat{border-top:3px solid var(--heat)}
+.town{font-size:10.5px;color:var(--muted);margin-top:7px;font-family:ui-monospace,Menlo,monospace}.town b{color:var(--ink);font-weight:600}
+.tfilter{border:1px dashed var(--rule);border-radius:8px;padding:11px 13px;font-size:12px;color:var(--muted)}.tfilter b{color:var(--ink);font-weight:600}
+.tqsub{font-size:11px;font-weight:600;color:var(--ink);margin:8px 0 0;text-align:center;background:var(--band);border-radius:6px;padding:5px 6px}
+.tg2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.tgate{border:1px solid var(--rule);border-radius:7px;padding:8px 9px;background:var(--bg)}
+.tgate .yn{font-size:9px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:2px 6px;border-radius:4px;display:inline-block;margin-bottom:6px}
+.tgate .yn.y{background:rgba(46,158,107,.14);color:var(--good)}
+.tgate .yn.n{background:rgba(218,59,36,.1);color:var(--heat)}
+.tgate ul{margin:0;padding-left:14px;font-size:11px;color:var(--muted);line-height:1.45}
+/* engage */
+.egrid3{display:grid;grid-template-columns:1.05fr 252px 300px;gap:30px;align-items:stretch;margin-top:24px}
+@media(max-width:940px){.egrid3{grid-template-columns:1fr;align-items:start;gap:26px}}
+.ecol-desc{display:flex;flex-direction:column}
+.edesc{font-size:15.5px;color:var(--muted);line-height:1.55;max-width:38ch}.edesc b{color:var(--ink);font-weight:600}
+.efeat{margin-top:auto;padding-top:24px;display:flex;flex-direction:column;gap:15px}
+.efeat .f{display:flex;gap:12px;align-items:flex-start}
+.efeat .fi{font-size:18px;line-height:1.1;flex:0 0 22px}
+.efeat .ft{font-size:13.5px;font-weight:700}
+.efeat .fd{font-size:12px;color:var(--muted);line-height:1.4;margin-top:2px}
+.egrid3 .poster{align-self:start}
+.poster{border:1px solid var(--rule);border-radius:14px;padding:22px 18px;background:var(--band);text-align:center}
+.poster .ptag{font-family:ui-monospace,Menlo,monospace;font-size:10.5px;letter-spacing:.14em;color:var(--heat);font-weight:600}
+.poster .ph{font-size:21px;font-weight:800;letter-spacing:-.02em;margin:7px 0 2px;line-height:1.16}
+.poster .psub{font-size:12.5px;color:var(--muted);margin-bottom:16px}
+.qrbox{background:#fff;border-radius:12px;padding:13px;display:inline-block;box-shadow:var(--sh)}
+.qrbox svg{display:block}
+.navilens{margin-top:16px;padding-top:15px;border-top:1px solid var(--rule)}
+.navilens .nl{font-size:10px;font-weight:600;letter-spacing:.03em;color:var(--muted);margin-bottom:9px;line-height:1.4}
+.nlcode{display:inline-block;background:#0d0d0f;padding:6px;border-radius:7px;line-height:0}
+.poster .langs{font-size:11.5px;color:var(--muted);margin-top:14px;line-height:1.5}
+.phone{width:290px;margin:0 auto;border:9px solid #14181f;border-radius:36px;background:var(--bg);box-shadow:0 14px 36px rgba(15,25,45,.17);overflow:hidden}
+.pscreen{background:var(--bg);min-height:512px;display:flex;flex-direction:column}
+.pbar{background:var(--nav);color:#fff;padding:14px 16px 12px}
+.pbar .u{font-size:9.5px;color:var(--nav-mut);letter-spacing:.1em;text-transform:uppercase;font-weight:600}
+.pbar .t{font-size:14px;font-weight:700;margin-top:3px}
+.pprog{display:flex;gap:5px;margin-top:12px}
+.pprog i{height:3px;flex:1;border-radius:2px;background:rgba(255,255,255,.22)}.pprog i.on{background:var(--logo)}
+.pbody{padding:20px 18px 8px;flex:1;display:flex;flex-direction:column}
+.pq{font-size:17px;font-weight:700;letter-spacing:-.01em;line-height:1.25}
+.phelp{font-size:12px;color:var(--muted);margin-top:5px}
+.popts{display:flex;flex-direction:column;gap:10px;margin-top:18px}
+.popt{border:1.4px solid var(--rule);border-radius:11px;padding:13px 14px;font-size:14px;font-weight:600;text-align:left;background:var(--bg);display:flex;align-items:center;gap:11px;color:var(--ink)}
+.popt:hover{border-color:var(--cool)}
+.popt.sel{border-color:var(--heat);background:rgba(218,59,36,.05)}
+.popt .em{font-size:18px}
+.popt .ck{margin-left:auto;color:var(--heat);font-weight:800;opacity:0}.popt.sel .ck{opacity:1}
+.pfoot{padding:12px 18px 18px;display:flex;align-items:center;gap:10px}
+.pback{border:0;background:none;color:var(--muted);font-weight:600;font-size:13px;padding:0}
+.pnext{margin-left:auto;border:0;background:var(--heat);color:#fff;border-radius:9px;padding:11px 22px;font-weight:700;font-size:13.5px}
+.pnext:disabled{opacity:.35}
+.pdone{text-align:center;padding:30px 20px;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.pdone .ok{width:52px;height:52px;border-radius:50%;background:rgba(46,158,107,.15);color:var(--grn);display:grid;place-items:center;font-size:26px;font-weight:800}
+.presult{background:var(--band);border-radius:10px;padding:12px 14px;margin-top:16px;text-align:left;font-size:12px;width:100%}
+.presult div{display:flex;justify-content:space-between;gap:10px;padding:3px 0}
+.presult .rl{color:var(--muted)}.presult .rv{color:var(--ink);font-weight:600;text-align:right}
+.foot{font-size:11.5px;color:var(--muted);line-height:1.7;border-top:1px solid var(--rule);padding-top:18px;margin-top:30px}.foot b{color:var(--ink);font-weight:600}
+#globalFoot{margin-top:16px;padding:12px 0 14px;text-align:center}
+:root[data-tab="analysis"] #globalFoot,:root[data-tab="prioritize"] #globalFoot{display:none}
+/* modal */
+.overlay{position:fixed;inset:0;background:rgba(10,15,25,.5);z-index:50;display:none;align-items:flex-start;justify-content:center;padding:44px 20px}.overlay.show{display:flex}
+.modal{width:min(720px,96vw);max-height:86vh;overflow:auto;background:var(--bg);border-radius:12px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.modal h3{margin:0;font-weight:700}.close{border:1px solid var(--rule);background:var(--bg);border-radius:7px;width:30px;height:30px;font-size:16px}
+.promptbox{border:1px solid var(--rule);border-radius:var(--r);padding:13px;margin-top:14px}
+.promptbox textarea{width:100%;height:62px;border:0;background:transparent;resize:none;outline:none;color:var(--ink);font-family:inherit;font-size:14px}
+.askrow button{border:0;background:var(--nav);color:#fff;border-radius:7px;padding:9px 15px;font-weight:600}
+.examples button{border:1px solid var(--rule);background:var(--bg);color:var(--muted);border-radius:20px;padding:6px 11px;font-size:11.5px;margin:8px 6px 0 0}
+.airesult{margin-top:14px;display:none}.airesult.show{display:block}
+.answer{background:var(--band);border-radius:var(--r);padding:12px 14px;font-size:13px;line-height:1.5}
+.rlist{margin-top:9px}.ritem{border:1px solid var(--rule);border-radius:var(--r);padding:10px 12px;display:flex;justify-content:space-between;align-items:center;font-size:12.5px;margin-top:7px}
+.ritem button{border:0;background:none;color:var(--heat);font-weight:600}
+[hidden]{display:none!important}
+a{color:var(--heat)}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="top">
+  <div class="brand"><div class="m">☀</div><div><h1>Transit Heat Intelligence</h1><small>Station-Level Capital &amp; Operational Decision-Support System</small></div></div>
+  <nav class="tabs" id="tabs">
+    <button data-t="prioritize" class="on">Prioritize</button>
+    <button data-t="analysis">Analysis &amp; Methodology</button>
+    <button data-t="engage">Engage</button>
+  </nav>
+  <div class="top-actions"><button class="primary" id="aiBtn">Ask AI Planner</button><button id="theme">◐</button></div>
+</div>
+
+<div class="wrap">
+  <!-- PRIORITIZE -->
+  <section class="tab on" id="prioritize">
+    <div class="dash">
+      <aside class="side">
+        <div class="h">Horizon</div>
+        <div class="decade" id="decade">
+          <button data-d="2020s" class="on">2020s</button><button data-d="2030s">2030s</button><button data-d="2050s">2050s</button>
+        </div>
+        <div class="hint" id="decadeHint"></div>
+        <div class="h">Route</div>
+        <div class="msel" id="mselRoute"></div>
+        <div class="h">Borough</div>
+        <div class="msel" id="mselBoro"></div>
+        <div id="filters"></div>
+      </aside>
+      <main>
+        <div class="kpis" id="kpis"></div>
+        <div class="mapbox">
+          <div id="lmap"></div>
+          <div class="drawctrl"><button id="drawBtn">▭ Select area</button><button id="clearArea" hidden>✕ Clear area</button></div>
+          <div class="mlegend"><b style="color:var(--ink)">Future Heat Risk</b>
+            <div class="r"><span class="d tred"></span>High</div><div class="r"><span class="d tamber"></span>Medium</div>
+            <div class="r"><span class="d tgreen"></span>Low</div><div class="r"><span class="d tnone"></span>Monitor</div>
+            <b style="color:var(--ink);display:block;margin-top:9px">Dominant exposure</b>
+            <div class="r"><span class="shp">●</span>Platform</div><div class="r"><span class="shp">■</span>Wait</div><div class="r"><span class="shp">▲</span>Walk</div>
+            <label class="lyrow"><input type="checkbox" id="lyLines" checked><span style="width:14px;height:4px;border-radius:2px;display:inline-block;background:linear-gradient(90deg,#EE352E 0 33%,#0039A6 33% 66%,#FF6319 66%)"></span>Subway lines</label>
+            <label class="lyrow"><input type="checkbox" id="lyHVI"><span class="d" style="background:#9C6BB0;border-radius:3px"></span>Heat vulnerability</label></div>
+        </div>
+        <div class="tablecard">
+          <div class="tablehead"><b id="tcount">Stations</b>
+            <div class="tools"><select id="sortBy"><option value="fhsr">Future Heat Risk</option><option value="penalty">Heat penalty</option><option value="lost">Trips lost</option></select><button id="exportBtn">⇩ Export</button></div>
+          </div>
+          <div class="tscroll" id="tableMount"></div>
+        </div>
+      </main>
+      <aside class="detail" id="detail"><div class="empty">Select a station on the map or table.</div></aside>
+    </div>
+  </section>
+
+  <!-- EVIDENCE -->
+  <section class="tab" id="analysis">
+   <div class="rlayout">
+    <aside class="rtoc">
+      <div class="tt">Contents</div>
+      <nav id="tocNav">
+        <a href="#s-summary" class="on">Summary</a>
+        <a href="#s-data">1 · Data</a>
+        <a href="#s-empirical">2 · Empirical strategy</a>
+        <a href="#s-results">3 · Results</a>
+        <a href="#s-decomp">4 · Exposure decomposition</a>
+        <a href="#s-priority">5 · Investment priority</a>
+        <a href="#s-robust">6 · Robustness</a>
+        <a href="#s-framework">7 · Intervention framework</a>
+      </nav>
+    </aside>
+    <div class="rpt" id="rpt">
+    <div class="reyebrow">Technical report · Analysis &amp; methodology</div>
+    <h2 class="rtitle">Extreme heat and afternoon subway ridership: a station-level analysis</h2>
+    <div class="rmeta">New York City subway · 428 station complexes · warm seasons (May–Sep) 2022–2024 · ≈190,000 station-day observations</div>
+
+    <h3 class="rh" id="s-summary">Summary</h3>
+    <p class="rp" id="rSummary"></p>
+
+    <h3 class="rh" id="s-data">1&nbsp;·&nbsp;Data</h3>
+    <p class="rp">The analysis combines high-frequency ridership, reanalysis weather, and built-environment data — all from public sources, so the workflow is reproducible by any agency with automated passenger counts, a weather feed, and basic station GIS.</p>
+    <div class="srcs2">
+      <div><b>MTA Subway Hourly Ridership, 2020–2024</b><span>NY State Open Data · <code>wujg-7c2s</code>. OMNY + MetroCard boardings per station complex per hour, aggregated to afternoon (12:00–20:00) totals per station-day.</span></div>
+      <div><b>Open-Meteo Historical Weather (ERA5 reanalysis)</b><span>Daily apparent-maximum temperature and precipitation at a central-NYC grid point (40.74, −73.82).</span></div>
+      <div><b>MTA Subway Stations &amp; Service Lines</b><span>NY State Open Data · <code>39hk-dx4f</code> and <code>s692-irgq</code> (route geometry). Each complex carries MTA's structure classification — <b>Underground</b> (below street, in tunnel or cut-and-cover), <b>Elevated</b> (on viaducts above the street), <b>Open Cut</b> (in a trench below street with bridges over), and <b>At-Grade / Embankment</b> (on the surface). Because the heat exposure of the open-air forms is similar, the tool groups Elevated and At-Grade as <b>Elevated / Open</b>, keeping Open Cut and Underground separate.</span></div>
+      <div><b>NYC Street Tree Census · DOT bus-stop shelters &amp; CityBench · NYC Heat Vulnerability Index · OpenStreetMap</b><span>Canopy, seating, social heat-vulnerability, and the pedestrian network — used for the exposure decomposition and the priority index.</span></div>
+    </div>
+
+    <h3 class="rh" id="s-empirical">2&nbsp;·&nbsp;Empirical strategy</h3>
+    <p class="rp">For each station complex <i>i</i> we estimate, by ordinary least squares, a log-linear model of daily afternoon ridership on felt temperature:</p>
+    <div class="eqn">ln(R<sub>it</sub>) = α<sub>i</sub> + β<sub>i</sub>·H<sub>t</sub> + γ<sub>i</sub>′X<sub>t</sub> + ε<sub>it</sub>,&nbsp;&nbsp;&nbsp;H<sub>t</sub> = max(0, apparent&nbsp;T<sub>max,t</sub> − 80°F)</div>
+    <p class="rp">R<sub>it</sub> is afternoon boardings at station <i>i</i> on day <i>t</i>; H<sub>t</sub> is a piecewise “hot-degrees” term that activates only above 80°F; and X<sub>t</sub> collects day-of-week, calendar-month, year, U.S.-federal-holiday, and daily-precipitation controls. Because the outcome is logged, β<sub>i</sub> is a <b>semi-elasticity</b> — the approximate proportional change in afternoon ridership per additional °F of felt heat above 80°F. The <b>heat penalty</b> reported throughout is the fitted change at 95°F relative to an 80°F baseline, exp(15·β<sub>i</sub>) − 1. Standard errors are classical OLS (≈450 daily observations per station); a response is termed <b>statistically significant</b> when |t(β<sub>i</sub>)| ≥ 1.96 (two-sided, α = 0.05). We classify significant negative slopes as <b>suppressed</b>, significant positive as <b>attracting</b>, and the balance as <b>neutral</b>.</p>
+
+    <h3 class="rh" id="s-results">3&nbsp;·&nbsp;Results</h3>
+    <p class="rp" id="rResults"></p>
+    <figure class="rfig">
+      <div class="legend" id="evLeg"></div>
+      <div class="chartbox"><svg id="curves" class="ch" viewBox="0 0 760 330" role="img"></svg><div class="tip" id="tipC"></div></div>
+      <figcaption><b>Figure&nbsp;1.</b> Weekday afternoon ridership by apparent-temperature bin, indexed to a mild day (75–82°F = 100), for one representative station per regime. Suppressed (59 St–Columbus Circle) declines monotonically with heat; neutral (Times Sq–42 St) is essentially flat; the attractor (Beach 90 St) rises sharply as hot weather drives beach demand.</figcaption>
+    </figure>
+    <p class="rp">Table&nbsp;1 reports the most precisely estimated suppression effects, ranked by |t|. β̂ is the per-°F semi-elasticity (in %); the penalty is the fitted 95°F-vs-80°F change; <i>p</i> is the two-sided value under a normal approximation.</p>
+    <div class="rtwrap"><table class="rtable" id="rTable"></table></div>
+
+    <h3 class="rh" id="s-decomp">4&nbsp;·&nbsp;Decomposing exposure: walk, wait, or platform</h3>
+    <p class="rp" id="dgFinding"></p>
+    <p class="rp">Because the intervention differs by where heat is felt, we decompose each suppressed station's exposure over its 5-minute network walkshed into three components, each min–max-normalized across stations: <b>walk</b> (inverse street-tree-canopy density on the approach), <b>wait</b> (inverse count of shelters and benches near the entrance), and <b>platform</b> (a structure score — elevated 100, open-cut 70, underground 55). The largest component defines the dominant burden.</p>
+    <figure class="rfig">
+      <div class="legend" id="dgLeg"></div>
+      <div class="chartbox"><svg id="legs" class="ch" viewBox="0 0 760 460" role="img"></svg><div class="tip" id="tipL"></div></div>
+      <figcaption><b>Figure&nbsp;2.</b> Heat-burden decomposition for the twelve suppressed stations with the highest total burden; the tag marks the dominant component.</figcaption>
+    </figure>
+
+    <h3 class="rh" id="s-priority">5&nbsp;·&nbsp;From estimates to investment priority</h3>
+    <p class="rp">To make the coefficients actionable, the tool's <b>Future Heat Service Risk</b> index scales each station's estimated penalty by afternoon ridership and by the projected annual frequency of extreme-heat days (NYC Panel on Climate Change, 4th assessment: heat-index days ≥95°F rise roughly six-fold, from ~6 to ~37 per year, by the 2050s), then weights the result by neighborhood social heat-vulnerability and by fixability. This converts an estimated slope into a fundable quantity — projected afternoon trips lost per year — and a red / amber / green priority tier used on the Prioritize tab.</p>
+
+    <h3 class="rh" id="s-robust">6&nbsp;·&nbsp;Robustness and limitations</h3>
+    <ul class="rul">
+      <li><b>Identification is associational, not causal.</b> Day-of-week, month, year and holiday fixed effects plus a precipitation control absorb the leading seasonal and weather confounders, but unobserved shocks (special events, service changes, construction) are not differenced out.</li>
+      <li><b>Functional form.</b> The 80°F threshold and log outcome impose a specific response shape; the sign and significance of results are stable under a linear-in-temperature specification and under a 78–82°F threshold.</li>
+      <li><b>Spatial temperature.</b> Felt temperature is drawn from a single central-NYC point; borough-scale microclimate differences (waterfront cooling, urban-heat-island intensity) are not resolved.</li>
+      <li><b>A null is not “no effect.”</b> A neutral coefficient is consistent with captive riders who endure the heat without changing behavior — a comfort and health cost a ridership regression cannot observe.</li>
+      <li><b>Attractors reflect destination demand</b> (beaches, parks), not thermal comfort, and should be read as capacity signals rather than suppression.</li>
+    </ul>
+
+    <h3 class="rh" id="s-framework">7&nbsp;·&nbsp;Intervention framework</h3>
+    <p class="rp">Each diagnosis maps to a costed intervention, filtered by owner, delivery timeline and cost. The evidence base favors shade over enclosure: street-tree shade lowers felt temperature by roughly 3°C (about twice a bus shelter), whereas poorly ventilated enclosed shelters can raise it. Trees, however, are slow and street-owned, while platform retrofits are faster and MTA-owned — so the binding constraint is often jurisdiction and timeline, not efficacy.</p>
+    <div class="play" id="play"></div>
+    <h4 class="rsub">Decision framework</h4>
+    <p class="rp">Every station routes through the same logic, from the estimated response to a specific, owned intervention:</p>
+    <div class="tree" id="tree"></div>
+    </div>
+   </div>
+  </section>
+
+  <!-- ENGAGE -->
+  <section class="tab" id="engage">
+    <div class="kick">Future data · Public engagement</div>
+    <h2 class="big2">Let riders tell us where it feels hottest.</h2>
+    <div class="egrid3">
+      <div class="ecol-desc">
+        <p class="edesc">A scannable code on station posters opens a <b>20-second</b> mobile form — no app. Structured answers feed the <b>walk / wait / platform</b> diagnosis directly. The intake is built on lessons from the MTA's <b>NaviLens</b> rollout:</p>
+        <div class="efeat">
+          <div class="f"><span class="fi">📡</span><div><div class="ft">Scans at a distance</div><div class="fd">Reads from ~3&nbsp;m, off-axis, no focusing.</div></div></div>
+          <div class="f"><span class="fi">🌐</span><div><div class="ft">Multilingual</div><div class="fd">30+ languages, auto-localized per rider.</div></div></div>
+          <div class="f"><span class="fi">♿</span><div><div class="ft">Accessible</div><div class="fd">VoiceOver, audio prompts, high contrast.</div></div></div>
+          <div class="f"><span class="fi">📱</span><div><div class="ft">No install</div><div class="fd">Opens in the browser — plain-QR fallback.</div></div></div>
+        </div>
+      </div>
+      <div class="poster">
+        <div class="ptag">MTA · HEAT PILOT</div>
+        <div class="ph">Where does it<br>feel hottest?</div>
+        <div class="psub">Scan · 20 seconds · no app</div>
+        <div class="qrbox" id="qrMount"></div>
+        <div class="navilens"><div class="nl">NaviLens-style code · high-contrast, scan-at-distance</div><div class="nlcode" id="nlMount"></div></div>
+        <div class="langs">EN · ES · 中文 · Русский · বাংলা · +30</div>
+      </div>
+      <div class="phone"><div class="pscreen" id="phone"></div></div>
+    </div>
+    <div class="foot">Rider feedback shown in station cards is <b>illustrative</b> — generated from each station's dominant exposure to demonstrate the intake. Real deployment replaces it with scan responses, structured and geo-tagged by station.</div>
+  </section>
+
+  <div class="foot" id="globalFoot"></div>
+</div>
+
+<!-- AI modal -->
+<div class="overlay" id="aiOverlay"><div class="modal"><div style="display:flex;justify-content:space-between;align-items:center"><div><h3>AI Planner</h3><div class="rt">Plain-language query over the station evidence + decision rules</div></div><button class="close" id="closeAi">×</button></div>
+  <div class="promptbox"><textarea id="aiPrompt">Which suppressed, platform-dominant stations can the MTA fix within a year?</textarea><div class="askrow" style="margin-top:8px"><button id="runAi">Run query</button></div></div>
+  <div class="examples"><button data-q="High future-heat-risk stations with low-cost fixes">High risk, low cost</button><button data-q="Wait-dominant stations owned by DOT">DOT wait fixes</button><button data-q="Underground stations needing ventilation">Underground ventilation</button></div>
+  <div class="airesult" id="aiResult"></div>
+</div></div>
+<!-- Decision path modal -->
+<div class="overlay" id="pathOverlay"><div class="modal"><div style="display:flex;justify-content:space-between;align-items:center"><div><h3 id="pathTitle">Decision path</h3><div class="rt">Evidence → diagnosis → action → implementation</div></div><button class="close" id="closePath">×</button></div><div id="pathMount" style="margin-top:14px"></div></div></div>
+
+<script>
+const DATA=__DATADATA__;
+const S=id=>document.getElementById(id);
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const NS="http://www.w3.org/2000/svg";
+const el=(n,a)=>{const e=document.createElementNS(NS,n);for(const k in a)e.setAttribute(k,a[k]);return e;};
+const fmt=n=>Math.round(n).toLocaleString();
+try{const sv=localStorage.getItem('thi-theme');if(sv)document.documentElement.setAttribute('data-theme',sv);}catch(e){}
+const ST=DATA.stations;
+// Official MTA line colors
+const MTA={'1':'#EE352E','2':'#EE352E','3':'#EE352E','4':'#00933C','5':'#00933C','6':'#00933C','7':'#B933AD',
+ 'A':'#0039A6','C':'#0039A6','E':'#0039A6','B':'#FF6319','D':'#FF6319','F':'#FF6319','M':'#FF6319','G':'#6CBE45',
+ 'J':'#996633','Z':'#996633','L':'#A7A9AC','N':'#FCCC0A','Q':'#FCCC0A','R':'#FCCC0A','W':'#FCCC0A','S':'#808183',
+ 'SIR':'#0039A6','SI':'#0039A6','T':'#00ADD0','H':'#808183'};
+const MTA_BLACK=new Set(['N','Q','R','W']);
+const bullet=l=>`<span class="bul" style="background:${MTA[l]||'#5A5A5A'};color:${MTA_BLACK.has(l)?'#121212':'#fff'}">${l}</span>`;
+const bullets=rr=>(rr||[]).map(bullet).join('');
+let decade='2020s', selected=null, areaBounds=null, drawing=false;
+const ROUTE_ORDER=['1','2','3','4','5','6','7','A','C','E','B','D','F','M','G','J','Z','L','N','Q','R','W','S','SIR','SI','H','T'];
+const ALLROUTES=[...new Set(ST.flatMap(s=>s.routes||[]))].sort((a,b)=>{const ia=ROUTE_ORDER.indexOf(a),ib=ROUTE_ORDER.indexOf(b);return (ia<0?99:ia)-(ib<0?99:ib)||a.localeCompare(b);});
+const ALLBORO=[...new Set(ST.map(s=>s.boro).filter(Boolean))].sort();
+const routeSel=new Set(ALLROUTES), boroSel=new Set(ALLBORO);
+const TIER={red:'--red',amber:'--yel',green:'--grn',none:'--faint'};
+const REGP={suppressed:['sup','Suppressed'],attractor:['att','Attractor'],neutral:['neu','Neutral']};
+const filterState={regime:new Set(['suppressed','neutral','attractor']),dominant:new Set(['walk','wait','platform']),
+ type:new Set(['Elevated / Open','Open Cut','Underground']),owner:new Set([...new Set(ST.map(s=>s.owner))]),cost:new Set(['$','$$','$$$'])};
+const filterDefs=[['Heat response','regime',[['suppressed','Suppressed'],['neutral','Neutral'],['attractor','Attractor']]],
+ ['Dominant exposure','dominant',[['walk','Walk'],['wait','Wait'],['platform','Platform']]],
+ ['Station type','type',[['Elevated / Open','Elevated / Open'],['Open Cut','Open Cut'],['Underground','Underground']]],
+ ['Owner','owner',[...new Set(ST.map(s=>s.owner))].map(o=>[o,o])],
+ ['Cost','cost',[['$','$ Low'],['$$','$$ Medium'],['$$$','$$$ High']]]];
+function passes(s){
+ if(!['regime','dominant','type','owner','cost'].every(k=>filterState[k].has(s[k])))return false;
+ if(!(s.routes||[]).some(r=>routeSel.has(r)))return false;
+ if(!boroSel.has(s.boro))return false;
+ if(areaBounds&&!areaBounds.contains([s.lat,s.lon]))return false;
+ return true;}
+function filtered(){return ST.filter(passes);}
+/* generic multi-select dropdown */
+function msSummary(sel,total,label){return sel.size>=total?`All ${label}`:sel.size===0?`No ${label}`:`${sel.size} of ${total}`;}
+function buildMulti(mountId,pairs,sel,label,opts){opts=opts||{};const isRoute=opts.route,counts=opts.counts,onChange=opts.onChange||(()=>renderDash());const m=S(mountId);
+ m.innerHTML=`<button class="mselbtn"><span class="cv"></span><span class="ar">▾</span></button>
+  <div class="mselpanel" hidden><div class="actions"><button data-a="all">All</button><button data-a="clear">Clear</button></div>
+  <div class="${isRoute?'grid':''}">${pairs.map(([v,lb])=>`<label class="mopt"><input type="checkbox" value="${v}" ${sel.has(v)?'checked':''}>${isRoute?bullet(v):`<span>${lb}</span>`}${counts?`<span class="mc">${counts[v]||0}</span>`:''}</label>`).join('')}</div></div>`;
+ const btn=m.querySelector('.mselbtn'),panel=m.querySelector('.mselpanel'),cv=m.querySelector('.cv');
+ const sync=()=>{cv.textContent=msSummary(sel,pairs.length,label);};
+ btn.onclick=e=>{e.stopPropagation();document.querySelectorAll('.mselpanel').forEach(p=>{if(p!==panel)p.hidden=true;});panel.hidden=!panel.hidden;};
+ panel.onclick=e=>e.stopPropagation();
+ panel.querySelectorAll('.mopt input').forEach(i=>i.onchange=()=>{i.checked?sel.add(i.value):sel.delete(i.value);sync();onChange();});
+ panel.querySelectorAll('.actions button').forEach(b=>b.onclick=()=>{const all=b.dataset.a==='all';sel.clear();if(all)pairs.forEach(p=>sel.add(p[0]));panel.querySelectorAll('.mopt input').forEach(i=>i.checked=all);sync();onChange();});
+ sync();}
+function buildSelectors(){
+ const boroCount={};ST.forEach(s=>boroCount[s.boro]=(boroCount[s.boro]||0)+1);
+ buildMulti('mselRoute',ALLROUTES.map(r=>[r,r]),routeSel,'lines',{route:true,onChange:()=>{renderDash();zoomToFiltered();}});
+ buildMulti('mselBoro',ALLBORO.map(b=>[b,b]),boroSel,'boroughs',{counts:boroCount,onChange:()=>{renderDash();zoomToFiltered();}});
+ S('filters').innerHTML=filterDefs.map(([t,k])=>`<div class="h">${t}</div><div class="msel" id="msel_${k}"></div>`).join('');
+ const shortLbl={regime:'responses',dominant:'exposures',type:'types',owner:'owners',cost:'levels'};
+ filterDefs.forEach(([t,k,opts])=>{const cnt={};ST.forEach(s=>cnt[s[k]]=(cnt[s[k]]||0)+1);buildMulti('msel_'+k,opts,filterState[k],shortLbl[k],{counts:cnt,onChange:()=>renderDash()});});}
+document.addEventListener('click',()=>document.querySelectorAll('.mselpanel').forEach(p=>p.hidden=true));
+function zoomToFiltered(){if(!lmap)return;const f=filtered();if(!f.length)return;const b=L.latLngBounds(f.map(s=>[s.lat,s.lon]));lmap.flyToBounds(b,{padding:[36,36],maxZoom:15,duration:.55});}
+function zoomAll(){if(!lmap)return;const b=DATA.bounds;lmap.flyToBounds([[b[1],b[0]],[b[3],b[2]]],{padding:[6,6],duration:.5});}
+
+function renderDecadeHint(){const days=DATA.ext[decade];const tot=filtered().reduce((a,s)=>a+s.tripsLost[decade],0);
+ S('decadeHint').innerHTML=`~<b style="color:var(--ink)">${days}</b> days/yr above 95°F heat index (NPCC). <b style="color:var(--heat)">${fmt(tot)}</b> afternoon trips lost/yr across the filtered stations.`;}
+
+function renderKpis(){const f=filtered();const red=f.filter(s=>s.tier[decade]==='red').length;
+ const lost=f.reduce((a,s)=>a+s.tripsLost[decade],0);
+ const exps=['walk','wait','platform'].map(k=>[k,f.filter(s=>s.dominant===k&&s.regime==='suppressed').length]).sort((a,b)=>b[1]-a[1]);
+ const supp=f.filter(s=>s.regime==='suppressed');const avg=supp.length?(supp.reduce((a,b)=>a+b.penalty,0)/supp.length).toFixed(1):'—';
+ S('kpis').innerHTML=[
+  ['Stations',f.length,`of ${ST.length} · ${decade}`],
+  ['High risk',red,'top-tercile priority'],
+  ['Afternoon trips lost/yr',fmt(lost),`at ${DATA.ext[decade]} hot days`],
+  ['Top exposure',exps[0][0][0].toUpperCase()+exps[0][0].slice(1),`${exps[0][1]} stations`],
+  ['Avg 95°F penalty',avg==='—'?'—':avg+'%','suppressed only']
+ ].map(k=>`<div class="kpi"><div class="l">${k[0]}</div><div class="v">${k[1]}</div><div class="s">${k[2]}</div></div>`).join('');}
+
+// map — Leaflet + Esri Light Gray Canvas basemap
+const HVIC=['#EDE7F3','#D9C9E6','#BF9FD1','#9C6BB0','#6E3D86'];
+const maxR=Math.max(...ST.map(s=>s.rides));
+let lmap,mLayer,hviLayer,slLayer;
+const slColor=s=>{if(s==='SIR')return MTA.SIR||'#0039A6';if(/^S/.test(s))return '#6E7379';const k=s.split(' ')[0];return MTA[k]||MTA[s[0]]||'#7A7C80';};
+function markerIcon(s){const c=css(TIER[s.tier[decade]]);const op=s.tier[decade]==='none'?0.6:0.95;
+ const r=5+8*Math.sqrt(s.rides/maxR);const sel=selected&&selected.label===s.label;
+ const stroke=sel?css('--ink'):'#ffffff',sw=sel?2.4:1.2;const sz=Math.ceil(r*2+sw*2+2),o=sz/2;
+ let shp;
+ if(s.dominant==='wait')shp=`<rect x="${(o-r).toFixed(1)}" y="${(o-r).toFixed(1)}" width="${(2*r).toFixed(1)}" height="${(2*r).toFixed(1)}" rx="${(r*0.34).toFixed(1)}" fill="${c}" fill-opacity="${op}" stroke="${stroke}" stroke-width="${sw}"/>`;
+ else if(s.dominant==='walk'){const h=r*1.2;shp=`<path d="M${o} ${(o-h).toFixed(1)}L${(o+h).toFixed(1)} ${(o+h*0.78).toFixed(1)}L${(o-h).toFixed(1)} ${(o+h*0.78).toFixed(1)}Z" fill="${c}" fill-opacity="${op}" stroke="${stroke}" stroke-width="${sw}"/>`;}
+ else shp=`<circle cx="${o}" cy="${o}" r="${r.toFixed(1)}" fill="${c}" fill-opacity="${op}" stroke="${stroke}" stroke-width="${sw}"/>`;
+ return L.divIcon({className:'stn',html:`<svg width="${sz}" height="${sz}" viewBox="0 0 ${sz} ${sz}">${shp}</svg>`,iconSize:[sz,sz],iconAnchor:[o,o]});}
+function initMap(){
+ lmap=L.map('lmap',{zoomControl:true,attributionControl:true,minZoom:9,maxZoom:16,zoomSnap:0.25,zoomDelta:0.5,wheelPxPerZoomLevel:55,wheelDebounceTime:18,scrollWheelZoom:true});
+ L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',{maxZoom:16,attribution:'Tiles &copy; Esri'}).addTo(lmap);
+ L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}',{maxZoom:16}).addTo(lmap);
+ slLayer=L.layerGroup().addTo(lmap);
+ (DATA.subwayLines||[]).forEach(ln=>{const col=slColor(ln.s);ln.p.forEach(part=>L.polyline(part.map(pt=>[pt[1],pt[0]]),{color:col,weight:2.6,opacity:.85,interactive:false,lineJoin:'round',lineCap:'round'}).addTo(slLayer));});
+ mLayer=L.layerGroup().addTo(lmap);
+ hviLayer=L.layerGroup();
+ (DATA.hviPolys||[]).forEach(p=>L.polygon(p.r.map(pt=>[pt[1],pt[0]]),{stroke:false,fillColor:HVIC[Math.max(1,Math.min(5,p.h))-1],fillOpacity:.5,interactive:false}).addTo(hviLayer));
+ const b=DATA.bounds;lmap.fitBounds([[b[1],b[0]],[b[3],b[2]]],{padding:[6,6]});
+ S('lyHVI').onchange=e=>{if(e.target.checked)hviLayer.addTo(lmap);else lmap.removeLayer(hviLayer);};
+ S('lyLines').onchange=e=>{if(e.target.checked)slLayer.addTo(lmap);else lmap.removeLayer(slLayer);};
+ // draw-rectangle area selector
+ let startLL=null,tempRect=null,areaRect=null;const dBtn=S('drawBtn'),cBtn=S('clearArea');
+ const stopDraw=()=>{drawing=false;dBtn.classList.remove('on');dBtn.textContent='▭ Select area';lmap.dragging.enable();lmap.getContainer().style.cursor='';};
+ const startDraw=()=>{drawing=true;dBtn.classList.add('on');dBtn.textContent='▭ Drag on map…';lmap.dragging.disable();lmap.getContainer().style.cursor='crosshair';};
+ dBtn.onclick=()=>drawing?stopDraw():startDraw();
+ cBtn.onclick=()=>{if(areaRect){lmap.removeLayer(areaRect);areaRect=null;}areaBounds=null;cBtn.hidden=true;renderDash();zoomAll();};
+ lmap.on('mousedown',e=>{if(!drawing)return;startLL=e.latlng;if(tempRect){lmap.removeLayer(tempRect);tempRect=null;}});
+ lmap.on('mousemove',e=>{if(!drawing||!startLL)return;const b=L.latLngBounds(startLL,e.latlng);if(tempRect)tempRect.setBounds(b);else tempRect=L.rectangle(b,{color:css('--heat'),weight:1.5,fillColor:css('--heat'),fillOpacity:.08,interactive:false,dashArray:'4 3'}).addTo(lmap);});
+ lmap.on('mouseup',e=>{if(!drawing||!startLL)return;const b=L.latLngBounds(startLL,e.latlng);startLL=null;stopDraw();
+  const p1=lmap.latLngToContainerPoint(b.getNorthWest()),p2=lmap.latLngToContainerPoint(b.getSouthEast());
+  if(Math.abs(p1.x-p2.x)<8||Math.abs(p1.y-p2.y)<8){if(tempRect){lmap.removeLayer(tempRect);tempRect=null;}return;}
+  if(areaRect)lmap.removeLayer(areaRect);areaRect=tempRect;tempRect=null;if(areaRect)areaRect.setStyle({fillOpacity:.06,dashArray:null});
+  areaBounds=b;cBtn.hidden=false;renderDash();lmap.flyToBounds(b,{padding:[30,30],maxZoom:15,duration:.5});});
+ setTimeout(()=>lmap.invalidateSize(),150);}
+function renderMap(){if(!lmap||!mLayer)return;mLayer.clearLayers();
+ filtered().forEach(s=>{const mk=L.marker([s.lat,s.lon],{icon:markerIcon(s),riseOnHover:true,keyboard:false});
+  mk.on('click',()=>{if(drawing)return;select(s.label,true);});
+  mk.bindTooltip(`${s.name} · ${s.dominant} · risk ${s.fhsr[decade]} · ${s.penalty>0?'+':''}${s.penalty}%`,{direction:'top',offset:[0,-3]});
+  mLayer.addLayer(mk);});}
+function tipShow(t,svg,e,s){const b=svg.parentElement.getBoundingClientRect();t.style.left=(e.clientX-b.left)+'px';t.style.top=(e.clientY-b.top)+'px';t.textContent=s;t.style.opacity=1;}
+
+function renderTable(){const rows=orderedRows();
+ S('tcount').textContent=`${rows.length} stations`;
+ S('tableMount').innerHTML=`<table><thead><tr><th>Priority</th><th>Station</th><th>Heat penalty</th><th>Riders exposed</th><th>Dominant burden</th><th>Future heat (${decade})</th><th>Equity (HVI)</th><th>Owner</th><th>Cost</th></tr></thead><tbody>${
+  rows.map(s=>`<tr class="row ${selected&&selected.label===s.label?'sel':''}" data-id="${s.label}">
+   <td><span class="tier t${s.tier[decade]}"></span> <span class="fnum">${s.fhsr[decade]||'–'}</span></td>
+   <td><b>${s.name}</b> ${bullets(s.routes)}</td>
+   <td class="fnum" style="color:${s.penalty<0?'var(--heat)':'var(--good)'}">${s.penalty>0?'+':''}${s.penalty}%</td>
+   <td>${s.ridersTier} <span class="rt">${fmt(s.rides)}/day</span></td>
+   <td class="exp ${s.dominant}">${s.dominant}</td>
+   <td class="fnum">${s.tripsLost[decade]?fmt(s.tripsLost[decade])+' lost':'—'}</td>
+   <td class="fnum">${s.hvi}/5</td><td>${s.owner}</td><td class="fnum">${s.cost}</td></tr>`).join('')}</tbody></table>`;
+ S('tableMount').querySelectorAll('.row').forEach(r=>r.onclick=()=>select(r.dataset.id,true));}
+
+function orderedRows(){let rows=filtered();const sort=S('sortBy').value;
+ rows.sort((a,b)=> sort==='penalty'?a.penalty-b.penalty : sort==='lost'?b.tripsLost[decade]-a.tripsLost[decade] : b.fhsr[decade]-a.fhsr[decade]);return rows;}
+function select(label,doZoom){selected=ST.find(s=>s.label===label)||selected;renderMap();renderTable();renderDetail();
+ if(doZoom&&lmap&&selected)lmap.flyTo([selected.lat,selected.lon],Math.max(lmap.getZoom(),15),{duration:.55});
+ if(typeof pbBuilt!=='undefined'&&pbBuilt&&S('tree')){treePathFromStation(selected);renderTree();}}
+function deselect(){selected=null;renderMap();renderTable();renderDetail();}
+let detailTab='overview';
+let FAV=new Set();try{FAV=new Set(JSON.parse(localStorage.getItem('thi-fav')||'[]'));}catch(e){}
+const REGSUB={suppressed:'Heat reduces ridership',attractor:'Heat increases ridership',neutral:'No significant heat effect'};
+const EXPICON={walk:['🚶','--cool'],wait:['🕒','--amber'],platform:['🚉','--heat']};
+const DELIV={Weeks:'Weeks (0–3 mo)',Months:'Months (3–12 mo)',Years:'Years (>12 mo)',Seasonal:'Seasonal'};
+const COSTL={'$':'$ Low','$$':'$$ Medium','$$$':'$$$ High'};
+const conf3=c=>c.includes('High')&&!c.includes('Medium')?3:(!c.includes('Medium')&&!c.includes('High')&&c.includes('Low')?1:2);
+function detailOverview(s){const rp=REGP[s.regime];const aw=s.action.split(' ');const a1=aw[0],arest=aw.slice(1).join(' ');
+ const cN=conf3(s.confidence);
+ return `<div class="dsec-h">Decision summary</div>
+  <div class="reccard">
+   <div class="recname"><div class="k">Recommended action</div><div class="v"><b>${a1}</b> ${arest}</div></div>
+   <div class="recrows">
+    <div class="recrow"><span class="ic">🏛️</span><span class="rk">Owner</span><span class="rv">${s.owner}</span></div>
+    <div class="recrow"><span class="ic">📅</span><span class="rk">Delivery timeframe</span><span class="rv">${DELIV[s.delivery]||s.delivery}</span></div>
+    <div class="recrow"><span class="ic">💲</span><span class="rk">Cost level</span><span class="rv">${COSTL[s.cost]||s.cost}</span></div>
+    <div class="recrow"><span class="ic">◎</span><span class="rk">Priority score</span><span class="rv pri">${s.fhsr[decade]||'–'} / 100</span></div>
+    <div class="recrow"><span class="ic">◔</span><span class="rk">Confidence</span><span class="rv">${s.confidence}<span class="confbar">${[1,2,3].map(i=>`<i class="${i<=cN?'on':''}"></i>`).join('')}</span></span></div>
+   </div>
+  </div>
+  <div class="dsec-h">Rider feedback <span class="sm">· AI-structured demo</span></div>
+  <div class="fbchips">${s.feedback.map(f=>`<span class="alt">“${f}”</span>`).join('')}</div>
+  <button class="fbmore" id="fbMore">View all feedback →</button>
+  <div class="dsec-h">Why this action?</div>
+  <div class="whytxt">${s.regime==='suppressed'?`<b>${s.type}</b> station with heat concentrated on the <b>${s.dominant}</b> leg during peak afternoon heat. ${s.dominant==='platform'?'Reflective roofing and a shade canopy cut radiant heat on the platform':s.dominant==='wait'?'An open shade structure and seating cut exposure while riders wait':'Street trees and interim awnings shade the approach'} — helping retain the ${fmt(s.rides)} afternoon riders/day and heading off ${fmt(s.tripsLost['2050s'])} trips at risk by the 2050s.`:s.regime==='attractor'?`Ridership <b>rises</b> on hot days — a destination surge (beach/park), not thermal comfort. Size the station for the peak with seasonal shade, water and crowd-ready platforms rather than chasing lost trips.`:`No statistically significant heat response. Keep monitoring ridership and rider feedback; reassess each season before committing capital.`}</div>
+  <button class="reportbtn" id="openPath">View full station report <span style="font-size:12px">↗</span></button>
+  <button class="reportbtn" id="exportCard" style="margin-top:9px">⤓ Export action card (PNG)</button>`;}
+function detailEvidence(s){const rp=REGP[s.regime];const beta=(Math.log(1+s.penalty/100)/15*100).toFixed(3);
+ return `<div class="dsec-h">Regression estimate</div>
+  <div class="evk">
+   <div class="c"><div class="k">95°F penalty</div><div class="v" style="color:${s.penalty<0?'var(--heat)':'var(--good)'}">${s.penalty>0?'+':''}${s.penalty}%</div></div>
+   <div class="c"><div class="k">t-statistic</div><div class="v">${s.t.toFixed(2)}</div></div>
+   <div class="c"><div class="k">β̂ (%/°F)</div><div class="v">${beta}</div></div>
+   <div class="c"><div class="k">Afternoon riders/day</div><div class="v">${fmt(s.rides)}</div></div>
+  </div>
+  <div class="whytxt">Estimated by OLS of log afternoon ridership on hot-degrees above 80°F, controlling for day-of-week, month, year, holidays and precipitation. With |t| = ${Math.abs(s.t).toFixed(2)} ${Math.abs(s.t)>=1.96?'≥ 1.96, the response is <b>statistically significant</b>':'< 1.96, the response is <b>not significant</b>'} at the 5% level, classifying this station as <b>${rp[1].toLowerCase()}</b>. Neighborhood heat-vulnerability index: <b>${s.hvi}/5</b>.</div>
+  <div class="dsec-h">Afternoon trips lost / year</div>
+  <div class="decay">${Object.keys(DATA.ext).map(d=>`<div><div class="yr">${d}</div><div class="n">${s.tripsLost[d]?fmt(s.tripsLost[d]):'—'}</div></div>`).join('')}</div>`;}
+function detailInterventions(s){return `<div class="dsec-h">Evidence → action path</div>
+  <div class="pstep"><div class="pn">01 · EVIDENCE</div><div class="pt">${REGP[s.regime][1]} · ${s.penalty>0?'+':''}${s.penalty}% at 95°F</div><div class="pd">t = ${s.t.toFixed(2)} · ${s.confidence} confidence · ${fmt(s.rides)} afternoon riders/day</div></div>
+  <div class="pstep"><div class="pn">02 · DIAGNOSIS</div><div class="pt">${s.dominant.toUpperCase()}-dominant · ${s.type}</div><div class="pd">Burden index — walk ${s.walk} · wait ${s.wait} · platform ${s.platform}. Largest component sets the fix.</div></div>
+  <div class="pstep"><div class="pn">03 · ACTION</div><div class="pt">${s.action}</div><div class="pd">Best-fit intervention for a ${s.dominant}-dominant, ${s.type.toLowerCase()} station.</div></div>
+  <div class="pstep"><div class="pn">04 · IMPLEMENTATION</div><div class="pt">${s.owner} · ${DELIV[s.delivery]||s.delivery} · ${COSTL[s.cost]||s.cost}</div><div class="pd">Priority ${s.fhsr[decade]||'–'}/100 · ${fmt(s.tripsLost['2050s'])} afternoon trips at risk by the 2050s.</div></div>
+  <button class="reportbtn" id="openPath">Open full decision path <span style="font-size:12px">↗</span></button>`;}
+function detailFeedback(s){return `<div class="dsec-h">Rider feedback <span class="sm">· AI-structured demo</span></div>
+  <div class="fbchips">${s.feedback.map(f=>`<span class="alt">“${f}”</span>`).join('')}</div>
+  <div class="whytxt" style="margin-top:14px">These themes are <b>illustrative</b> — generated from this station's dominant <b>${s.dominant}</b> exposure to demonstrate the intake. In deployment they are replaced by structured, geo-tagged responses from the rider survey on the <b>Engage</b> tab, clustered by an LLM into recurring themes per station.</div>`;}
+function renderDetail(){const s=selected;const box=S('detail');
+ if(!s){box.innerHTML='<div class="empty">Select a station on the map or table to see its heat diagnosis and recommended action.</div>';return;}
+ const rp=REGP[s.regime];const rows=orderedRows();const idx=rows.findIndex(r=>r.label===s.label);
+ const prev=idx>0?rows[idx-1]:null,next=idx>=0&&idx<rows.length-1?rows[idx+1]:null;
+ const exp=EXPICON[s.dominant]||['•','--muted'];const isFav=FAV.has(s.label);
+ const tabs=[['overview','Overview'],['evidence','Evidence'],['interventions','Interventions'],['feedback','Feedback']];
+ const body=detailTab==='evidence'?detailEvidence(s):detailTab==='interventions'?detailInterventions(s):detailTab==='feedback'?detailFeedback(s):detailOverview(s);
+ box.innerHTML=`<div class="dpad">
+   <div class="dhead"><button class="dback" id="dBack">‹ Back to Map</button><button class="dclose" id="dClose">×</button></div>
+   <div class="dname2">${s.name} ${bullets(s.routes)}<button class="dstar ${isFav?'on':''}" id="dStar" title="Save station">${isFav?'★':'☆'}</button></div>
+   <div class="dloc">${s.boro}, NY</div>
+   <div class="dsubt"><span class="dbadge ${rp[0]}">${rp[1].toUpperCase()}</span><span class="cap">${REGSUB[s.regime]}</span></div>
+   <div class="mrow"><span class="k">95°F Penalty</span><span class="val xl" style="color:${s.penalty<0?'var(--heat)':'var(--good)'}">${s.penalty>0?'+':''}${s.penalty}%</span></div>
+   <div class="mrow"><span class="k">Dominant Exposure</span><span class="mexp" style="color:${css(exp[1])}"><span class="em">${exp[0]}</span>${s.dominant[0].toUpperCase()+s.dominant.slice(1)}</span></div>
+   <div class="mrow"><span class="k">Station Type</span><span class="val" style="font-size:15px">${s.type}</span></div>
+   <div class="dtabs">${tabs.map(t=>`<button class="dtab ${detailTab===t[0]?'on':''}" data-dt="${t[0]}">${t[1]}</button>`).join('')}</div>
+   <div id="dbody" style="margin-top:2px">${body}</div>
+  </div>
+  <div class="navrow"><button class="navbtn" id="dPrev" ${prev?'':'disabled'}>‹ Previous</button><button class="navbtn" id="dNext" ${next?'':'disabled'}>Next ›</button></div>`;
+ S('dBack').onclick=()=>{const m=S('lmap');if(m)m.scrollIntoView({behavior:'smooth',block:'center'});};
+ S('dClose').onclick=deselect;
+ S('dStar').onclick=()=>{isFav?FAV.delete(s.label):FAV.add(s.label);try{localStorage.setItem('thi-fav',JSON.stringify([...FAV]));}catch(e){}renderDetail();};
+ box.querySelectorAll('.dtab').forEach(b=>b.onclick=()=>{detailTab=b.dataset.dt;renderDetail();});
+ const op=S('openPath');if(op)op.onclick=()=>showPath(s);
+ const ec=S('exportCard');if(ec)ec.onclick=()=>exportCard(s);
+ const fm=S('fbMore');if(fm)fm.onclick=()=>{detailTab='feedback';renderDetail();};
+ if(prev)S('dPrev').onclick=()=>select(prev.label,true);
+ if(next)S('dNext').onclick=()=>select(next.label,true);}
+
+/* ---------- export station action card (PNG) ---------- */
+function downloadCard(svg,w,h,name){const blob=new Blob([svg],{type:'image/svg+xml;charset=utf-8'});const url=URL.createObjectURL(blob);const img=new Image();
+ img.onload=()=>{const sc=2,c=document.createElement('canvas');c.width=w*sc;c.height=h*sc;const x=c.getContext('2d');x.setTransform(sc,0,0,sc,0,0);x.fillStyle='#fff';x.fillRect(0,0,w,h);x.drawImage(img,0,0);URL.revokeObjectURL(url);
+  try{c.toBlob(b=>{const a=document.createElement('a');a.download=name+'.png';a.href=URL.createObjectURL(b);document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500);},'image/png');}
+  catch(e){const a=document.createElement('a');a.download=name+'.svg';a.href='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);a.click();}};
+ img.onerror=()=>{const a=document.createElement('a');a.download=name+'.svg';a.href=url;document.body.appendChild(a);a.click();a.remove();};
+ img.src=url;}
+function exportCard(s){const W=980,H=300,F='Arial, Helvetica, sans-serif';
+ const navy='#0F1D30',ink='#1B2431',mut='#69727F',rule='#E7E9EE',heat='#DA3B24',good='#2E9E6B',cool='#2C6E8F';
+ const esc=t=>String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+ const T=(x,y,t,o)=>{o=o||{};return `<text x="${x}" y="${y}" font-family="${F}" font-size="${o.s||13}" font-weight="${o.w||400}" fill="${o.c||ink}" text-anchor="${o.a||'start'}" letter-spacing="${o.ls||0}">${esc(t)}</text>`;};
+ const bulletsSVG=(x,y,routes)=>{let cx=x;return (routes||[]).map(r=>{const col=MTA[r]||'#5A5A5A',dark=MTA_BLACK.has(r);const g=`<circle cx="${cx+11}" cy="${y}" r="11" fill="${col}"/>`+T(cx+11,y+4,r,{s:12,w:700,c:dark?'#121212':'#fff',a:'middle'});cx+=25;return g;}).join('');};
+ const ug=s.type==='Underground',ocut=s.type==='Open Cut';
+ // left schematic panel (illustrative, by structure type — not a photo)
+ const panelBg=ug?'#243244':ocut?'#c3d6cf':'#cfe3f2';
+ const typeCap=ug?'UNDERGROUND':ocut?'OPEN CUT':'ELEVATED / OPEN';
+ const trainCol=ug?'#3d5674':'#5f7488',glass=ug?'#6f8bab':'#aebfce';
+ let scene=`<rect x="16" y="54" width="300" height="196" rx="10" fill="${panelBg}"/>`;
+ scene+=`<rect x="16" y="196" width="300" height="54" rx="0" fill="rgba(0,0,0,.10)"/>`;               // platform slab
+ scene+=`<rect x="96" y="96" width="140" height="74" rx="12" fill="${trainCol}"/>`;                     // train body
+ scene+=`<rect x="108" y="110" width="52" height="30" rx="5" fill="${glass}"/><rect x="172" y="110" width="52" height="30" rx="5" fill="${glass}"/>`;
+ scene+=`<circle cx="120" cy="176" r="9" fill="#2c3947"/><circle cx="212" cy="176" r="9" fill="#2c3947"/>`;
+ scene+=`<rect x="40" y="200" width="252" height="4" rx="2" fill="rgba(255,255,255,.55)"/>`;             // platform edge
+ scene+=T(166,236,typeCap,{s:12,w:700,c:ug?'#9fb2c8':'#5b6b7d',a:'middle',ls:1.2});
+ // header
+ let g=`<rect x="0" y="0" width="${W}" height="42" fill="${navy}"/>`+T(W/2,27,'STATION ACTION CARD',{s:14,w:700,c:'#fff',a:'middle',ls:2});
+ g+=scene;
+ // divider between middle and right
+ g+=`<line x1="654" y1="60" x2="654" y2="250" stroke="${rule}" stroke-width="1"/>`;
+ // middle column
+ g+=T(340,90,s.name,{s:23,w:700});g+=bulletsSVG(344+s.name.length*12.2,82,s.routes);
+ const midRow=(y,label,valSVG)=>T(340,y,label,{s:13,c:mut})+valSVG;
+ const rc={suppressed:heat,attractor:good,neutral:mut}[s.regime],rl=REGP[s.regime][1].toUpperCase(),bw=rl.length*7.6+22;
+ g+=midRow(134,'Heat Response',`<rect x="500" y="119" width="${bw}" height="22" rx="5" fill="none" stroke="${rc}" stroke-width="1.4"/>`+T(500+bw/2,134,rl,{s:11,w:700,c:rc,a:'middle',ls:.4}));
+ g+=midRow(172,'95°F Penalty',T(500,172,(s.penalty>0?'+':'')+s.penalty+'%',{s:17,w:700,c:s.penalty<0?heat:good}));
+ g+=midRow(208,'Dominant Exposure',T(500,208,s.dominant.toUpperCase(),{s:15,w:700}));
+ g+=midRow(244,'Station Type',T(500,244,s.type,{s:15,w:700}));
+ // right column
+ const RX=674,RV=958;
+ const aw=s.action.split(' ');let l1='',l2='';aw.forEach(w=>{if(!l1||(l1+' '+w).length<=20)l1=(l1?l1+' ':'')+w;else l2=(l2?l2+' ':'')+w;});
+ g+=T(RX,84,'Recommended Action',{s:13,c:mut})+T(RV,84,l1,{s:15,w:700,c:good,a:'end'})+(l2?T(RV,104,l2,{s:15,w:700,c:good,a:'end'}):'');
+ const rightRow=(y,label,val)=>T(RX,y,label,{s:13,c:mut})+T(RV,y,val,{s:15,w:700,a:'end'});
+ g+=rightRow(140,'Owner',s.owner);
+ g+=rightRow(174,'Delivery',(DELIV[s.delivery]||s.delivery));
+ g+=rightRow(208,'Cost',(COSTL[s.cost]||s.cost));
+ g+=rightRow(242,'Confidence',s.confidence);
+ // footer feedback
+ g+=`<line x1="16" y1="262" x2="${W-16}" y2="262" stroke="${rule}" stroke-width="1"/>`;
+ g+=T(20,288,'Supporting Rider Feedback (AI-structured demo)',{s:12,c:mut});
+ let cx=352;(s.feedback||[]).forEach(f=>{const t='“'+f+'”',w=t.length*6.6+20;g+=`<rect x="${cx}" y="276" width="${w}" height="20" rx="10" fill="none" stroke="${rule}"/>`+T(cx+w/2,289,t,{s:11,c:cool,a:'middle'});cx+=w+8;});
+ const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" fill="#fff"/><rect x="0.5" y="0.5" width="${W-1}" height="${H-1}" fill="none" stroke="${rule}"/>${g}</svg>`;
+ downloadCard(svg,W,H,s.name.replace(/[^\w]+/g,'_')+'_action_card');}
+/* ---------- tabs ---------- */
+let tocBuilt=false;
+function initTOC(){if(tocBuilt)return;tocBuilt=true;const rpt=S('rpt'),nav=S('tocNav');if(!rpt||!nav)return;
+ const links=[...nav.querySelectorAll('a')];
+ links.forEach(a=>a.onclick=e=>{e.preventDefault();const el=document.querySelector(a.getAttribute('href'));if(el){const top=el.getBoundingClientRect().top-rpt.getBoundingClientRect().top+rpt.scrollTop-6;rpt.scrollTo({top,behavior:'smooth'});}});
+ const io=new IntersectionObserver(es=>{es.forEach(en=>{if(en.isIntersecting){links.forEach(a=>a.classList.toggle('on',a.getAttribute('href')==='#'+en.target.id));}});},{root:rpt,rootMargin:'0px 0px -72% 0px',threshold:0});
+ links.forEach(a=>{const el=document.getElementById(a.getAttribute('href').slice(1));if(el)io.observe(el);});}
+function tab(name){document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.id===name));
+ document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===name));
+ document.documentElement.setAttribute('data-tab',name);
+ if(name==='analysis'){buildEvidence();buildDiagnosis();buildPlaybook();initTOC();}
+ if(name==='prioritize'&&lmap)setTimeout(()=>lmap.invalidateSize(),60);window.scrollTo(0,0);}
+S('tabs').addEventListener('click',e=>{const b=e.target.closest('button');if(b)tab(b.dataset.t);});
+
+function renderDash(){renderDecadeHint();renderKpis();renderMap();renderTable();renderDetail();}
+S('decade').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;decade=b.dataset.d;
+ [...e.currentTarget.children].forEach(x=>x.classList.toggle('on',x===b));renderDash();});
+S('sortBy').onchange=renderTable;
+S('exportBtn').onclick=()=>alert('Prototype: exports the filtered station list as a capital-planning CSV.');
+
+/* ---------- evidence ---------- */
+const REG={suppressed:'--heat',neutral:'--muted',attractor:'--cool'};
+let evBuilt=false;
+function buildEvidence(){if(evBuilt)return;evBuilt=true;const m=DATA.meta;
+ const erf=x=>{const t=1/(1+0.3275911*Math.abs(x));const y=1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-0.284496736)*t+0.254829592)*t*Math.exp(-x*x);return x>=0?y:-y;};
+ const pfmt=v=>{const p=2*(1-0.5*(1+erf(Math.abs(v)/Math.SQRT2)));return p<1e-4?'<0.0001':p<1e-3?'<0.001':p.toFixed(3);};
+ const quant=(a,q)=>{const k=(a.length-1)*q,f=Math.floor(k);return a[f]+(a[Math.min(f+1,a.length-1)]-a[f])*(k-f);};
+ const sup=ST.filter(s=>s.regime==='suppressed'),att=ST.filter(s=>s.regime==='attractor');
+ const pens=sup.map(s=>s.penalty).sort((a,b)=>a-b);const med=quant(pens,.5),q1=quant(pens,.25),q3=quant(pens,.75);
+ const worst=sup.reduce((a,b)=>b.penalty<a.penalty?b:a),top=att.length?att.reduce((a,b)=>b.penalty>a.penalty?b:a):null;
+ S('rSummary').innerHTML=`Across ${m.n} station complexes, <b>${m.sig} (${(100*m.sig/m.n).toFixed(0)}%)</b> exhibit a statistically significant afternoon-ridership response to apparent temperature at the 5% level. Of these, <b>${m.suppressed}</b> are negative (heat-suppressed) and <b>${m.attractor}</b> positive (heat-attracting); the remaining ${m.neutral} are statistically indistinguishable from zero. Among suppressed stations the median fitted reduction on a 95°F afternoon relative to 80°F is <b>${med.toFixed(1)}%</b> (interquartile range ${q1.toFixed(1)}% to ${q3.toFixed(1)}%), reaching <b>${worst.penalty}%</b> at ${worst.name}${top?`, while the largest positive response is +${Math.round(top.penalty)}% at ${top.name}`:''}.`;
+ S('rResults').innerHTML=`The three response regimes are shown in Figure&nbsp;1. Suppression is the dominant pattern and is economically meaningful: at the median suppressed station a 95°F afternoon carries roughly ${Math.abs(med).toFixed(0)}% fewer riders than a mild one, and the effect increases with felt temperature. Significant suppression concentrates on outdoor, elevated lines and at high-ridership hubs — consistent with exposure during the walk and platform legs — whereas captive, deep-underground stations more often test neutral. The most precisely estimated effects are listed in Table&nbsp;1.`;
+ const rows=[...sup].sort((a,b)=>a.t-b.t).slice(0,10);
+ S('rTable').innerHTML=`<thead><tr><th class="l">Station</th><th>Lines</th><th>β̂&nbsp;(%/°F)</th><th>Penalty&nbsp;@95°F</th><th>t</th><th>p</th></tr></thead><tbody>`+
+  rows.map(s=>`<tr><td class="l">${s.name}</td><td>${bullets(s.routes)}</td><td>${(Math.log(1+s.penalty/100)/15*100).toFixed(3)}</td><td>${s.penalty}%</td><td>${s.t.toFixed(2)}</td><td>${pfmt(s.t)}</td></tr>`).join('')+`</tbody>`;
+ S('evLeg').innerHTML=[['suppressed','suppressed'],['neutral','neutral'],['attractor','attracting']].map(x=>`<span class="it"><span class="sq" style="background:${css(REG[x[0]])}"></span>${x[1]}</span>`).join('');
+ const svg=S('curves'),W=760,H=330,ML=44,MR=138,MT=16,MB=40,pw=W-ML-MR,ph=H-MT-MB;const bins=DATA.bins,n=bins.length,yMin=45,yMax=160,X=i=>ML+i*(pw/(n-1)),Y=v=>MT+(yMax-v)/(yMax-yMin)*ph;
+ [50,100,150].forEach(v=>{svg.appendChild(el('line',{x1:ML,y1:Y(v),x2:ML+pw,y2:Y(v),class:v===100?'base':'gl'}));const t=el('text',{x:ML-8,y:Y(v)+3,'text-anchor':'end',class:'ax'});t.textContent=v;svg.appendChild(t);});
+ bins.forEach((b,i)=>{const t=el('text',{x:X(i),y:MT+ph+20,'text-anchor':'middle',class:'ax'});t.textContent=b;svg.appendChild(t);});
+ DATA.exemplars.forEach((ex,gi)=>{const cc=css(REG[ex.regime]);let dd='';const pts=[];
+  ex.curve.forEach((v,i)=>{if(v==null)return;const x=X(i),y=Y(v);dd+=(dd?'L':'M')+x+','+y;pts.push([x,y,v]);});
+  svg.appendChild(el('path',{d:dd,fill:'none',stroke:cc,'stroke-width':2.4,'stroke-linejoin':'round'}));
+  const last=pts[pts.length-1];const l=el('text',{x:last[0]+9,y:last[1]+4,class:'lbl',fill:cc});l.setAttribute('font-size','13');l.textContent=ex.name.replace(/\s*\(.*/,'');svg.appendChild(l);
+  const s2=el('text',{x:last[0]+9,y:last[1]+19,class:'ax'});s2.textContent=(last[2]>=100?'+':'')+(last[2]-100).toFixed(0)+'%';svg.appendChild(s2);});}
+
+/* ---------- diagnosis ---------- */
+const LEGC={walk:'--cool',wait:'--amber',platform:'--heat'};let dgBuilt=false;
+function buildDiagnosis(){if(dgBuilt)return;dgBuilt=true;const focus=ST.filter(s=>s.regime==='suppressed');
+ const dp=DATA.dom.platform,dw=DATA.dom.wait,dk=DATA.dom.walk;
+ S('dgFinding').innerHTML=`Among the ${focus.length} suppressed stations, the dominant heat burden is the <b>platform</b> for ${dp} and the <b>wait</b> for ${dw}; the <b>walk</b> dominates at only ${dk}. Heat is therefore felt overwhelmingly at the stop and on the platform rather than on the approach, which directs intervention toward platform shading and station-area shelter rather than street trees alone.`;
+ S('dgLeg').innerHTML=[['walk','walk / shade'],['wait','wait / shelter'],['platform','platform / sun']].map(x=>`<span class="it"><span class="sq" style="background:${css(LEGC[x[0]])}"></span>${x[1]}</span>`).join('');
+ const rows=focus.slice().sort((a,b)=>((b.walk+b.wait+b.platform)-(a.walk+a.wait+a.platform))).slice(0,12);
+ const svg=S('legs'),W=760,H=460,ML=150,MR=64,MT=8,MB=26,pw=W-ML-MR,rh=(H-MT-MB)/rows.length,bh=Math.min(18,rh-12),Xv=v=>v/300*pw;
+ [0,100,200,300].forEach(v=>{svg.appendChild(el('line',{x1:ML+Xv(v),y1:MT,x2:ML+Xv(v),y2:MT+rows.length*rh-8,class:'gl'}));const t=el('text',{x:ML+Xv(v),y:MT+rows.length*rh+8,'text-anchor':'middle',class:'ax'});t.textContent=v;svg.appendChild(t);});
+ rows.forEach((s,i)=>{const y=MT+i*rh+(rh-bh)/2;const nm=el('text',{x:ML-12,y:y+bh/2+4,'text-anchor':'end',class:'lbl',fill:css('--ink')});nm.setAttribute('font-size','12.5');nm.textContent=s.name.slice(0,20);svg.appendChild(nm);
+  let x=ML;['walk','wait','platform'].forEach(kk=>{const w=Xv(s[kk]);if(w<=0)return;const rc=el('rect',{x:x,y:y,width:Math.max(0,w-1.5),height:bh,fill:css(LEGC[kk]),opacity:s.dominant===kk?1:0.68});
+   rc.addEventListener('mousemove',e=>tipShow(S('tipL'),svg,e,`${s.name} · ${kk} ${s[kk]}`));rc.addEventListener('mouseleave',()=>S('tipL').style.opacity=0);svg.appendChild(rc);x+=w;});
+  const tg=el('text',{x:x+8,y:y+bh/2+4,class:'ax',fill:css(LEGC[s.dominant])});tg.textContent=s.dominant.toUpperCase();svg.appendChild(tg);});}
+
+/* ---------- playbook ---------- */
+let pbBuilt=false;
+function buildPlaybook(){if(pbBuilt)return;pbBuilt=true;const p=DATA.play;
+ const PLAY=[['--heat',p.elevated,'Full-sun elevated platform','Reflective cool-roof coating + a shade canopy over the platform — trees can’t reach up here.','N/W, J/Z, 7 lines.','MTA','Months · $$'],
+ ['--amber',p.wait,'Exposed wait, no seat','Platform-level shade and seating in the waiting zone, plus a cooling / hydration point on heat-alert days — MTA-owned and maintained.','Platform shade cuts felt heat ~3°C at the wait.','MTA','Weeks–Months · $–$$'],
+ ['--heat',p.underground,'Underground furnace','Ventilation first, then radiant cooling / a thermal-energy network — NYC’s 2026 pilot.','Platforms hit 100°F+; reuses waste heat.','MTA','Years · $$$'],
+ ['--cool',p.walk,'Bare, low-canopy walk','Street trees — cheapest, most effective cooling — plus interim awnings while they grow.','Tree shade ~3.2°C; limited by sidewalk width.','Parks / DOT','Years · $'],
+ ['--cool',p.beach,'Beach surge terminal','Seasonal shade, water and crowd-ready platforms — cool the peak, don’t chase lost trips.','Rockaway A/S gain up to +78%.','MTA / Parks','Seasonal · $$']];
+ S('play').innerHTML=PLAY.map(p=>`<div class="pl"><div class="ct" style="color:${css(p[0])}">${p[1]}<span class="d" style="background:${css(p[0])}"></span></div>
+  <div><div class="nm">${p[2]}</div><div class="fx">${p[3]}</div><div class="ev">${p[4]}</div></div><div class="tags"><b>${p[5]}</b>${p[6]}</div></div>`).join('');
+ setupTree();}
+function prescribeJS(reg,dom,ug){
+ if(reg==='attractor')return['Seasonal shade + water + crowd readiness','MTA / Parks','Seasonal','$$'];
+ if(reg==='neutral')return['Monitor + rider feedback','MTA','Monitor','$'];
+ if(dom==='walk')return['Street trees + shaded approach','Parks / DOT','Years','$'];
+ if(dom==='wait')return ug?['Platform seating + mezzanine cooling','MTA','Months','$$']:['Platform shade + seating','MTA','Weeks','$'];
+ return ug?['Ventilation + thermal management','MTA','Years','$$$']:['Shade canopy + reflective roof','MTA','Months','$$'];}
+let tpath={l1:'sup',l2:'platform',l3:'elevated'};
+function treePathFromStation(s){if(!s)return;
+ if(s.regime==='attractor')tpath={l1:'att',l2:null,l3:null};
+ else if(s.regime==='neutral')tpath={l1:'no',l2:null,l3:null};
+ else tpath={l1:'sup',l2:s.dominant,l3:s.dominant==='platform'?(s.type==='Underground'?'underground':'elevated'):null};}
+function treeHTML(){return `
+ <p class="dthint">Click a branch to trace it. The path for the selected station is highlighted; every station routes through this logic to one owned intervention.</p>
+ <div class="dtlevel"><div class="dtq">1 · Significant heat response?</div>
+   <div class="dtopts">
+     <button class="dopt" data-lvl="1" data-v="no">No · Monitor</button>
+     <button class="dopt" data-lvl="1" data-v="att">Attractor · ridership&nbsp;↑</button>
+     <button class="dopt" data-lvl="1" data-v="sup">Suppressed · ridership&nbsp;↓</button>
+   </div></div>
+ <div class="dtlevel" data-wrap="2"><div class="dtq">2 · Dominant heat burden?</div>
+   <div class="dtopts">
+     <button class="dopt" data-lvl="2" data-v="walk">🚶 Walk</button>
+     <button class="dopt" data-lvl="2" data-v="wait">🕒 Wait</button>
+     <button class="dopt" data-lvl="2" data-v="platform">🚉 Platform</button>
+   </div></div>
+ <div class="dtlevel" data-wrap="3"><div class="dtq">3 · Station type?</div>
+   <div class="dtopts">
+     <button class="dopt" data-lvl="3" data-v="elevated">Elevated / Open</button>
+     <button class="dopt" data-lvl="3" data-v="underground">Underground</button>
+   </div></div>
+ <div class="dtout" id="dtOut"></div>`;}
+function renderTree(){const root=S('tree');if(!root||!root.querySelector('.dopt'))return;
+ const w2=root.querySelector('[data-wrap="2"]'),w3=root.querySelector('[data-wrap="3"]');
+ w2.hidden=tpath.l1!=='sup';w3.hidden=!(tpath.l1==='sup'&&tpath.l2==='platform');
+ root.querySelectorAll('.dopt').forEach(b=>{const on=(b.dataset.lvl==='1'&&tpath.l1===b.dataset.v)||(b.dataset.lvl==='2'&&tpath.l2===b.dataset.v)||(b.dataset.lvl==='3'&&tpath.l3===b.dataset.v);
+   b.classList.toggle('on',on);b.classList.toggle('att',b.dataset.v==='att');});
+ const reg=tpath.l1==='att'?'attractor':tpath.l1==='no'?'neutral':'suppressed';
+ const out=S('dtOut');const isAtt=reg==='attractor';
+ if(reg==='suppressed'&&!tpath.l2){out.innerHTML='<div class="dtcount">Pick a dominant burden to see the owned intervention.</div>';return;}
+ if(reg==='suppressed'&&tpath.l2==='platform'&&!tpath.l3){out.innerHTML='<div class="dtcount">Pick a station type to see the owned intervention.</div>';return;}
+ const ug=tpath.l3==='underground';const p=prescribeJS(reg,tpath.l2,ug);const aw=p[0].split(' ');
+ const cnt=ST.filter(s=>{if(reg==='attractor')return s.regime==='attractor';if(reg==='neutral')return s.regime==='neutral';
+   if(s.regime!=='suppressed')return false;if(tpath.l2&&s.dominant!==tpath.l2)return false;
+   if(tpath.l2==='platform'&&tpath.l3&&((s.type==='Underground')!==(tpath.l3==='underground')))return false;return true;}).length;
+ out.innerHTML=`<div class="dtaction ${isAtt?'att':''}"><b>${aw[0]}</b> ${aw.slice(1).join(' ')}</div>
+   <div class="dtmeta"><span>Owner <b>${p[1]}</b></span><span>Delivery <b>${p[2]}</b></span><span>Cost <b>${p[3]}</b></span></div>
+   <div class="dtcount"><b>${cnt}</b> station${cnt===1?'':'s'} follow this path.<button class="dtshow" id="dtShow">Show on Prioritize →</button></div>`;
+ const sh=S('dtShow');if(sh)sh.onclick=()=>tab('prioritize');}
+function setupTree(){const root=S('tree');root.innerHTML=treeHTML();treePathFromStation(selected);
+ root.querySelectorAll('.dopt').forEach(b=>b.onclick=()=>{const lv=b.dataset.lvl,v=b.dataset.v;
+   if(lv==='1')tpath={l1:v,l2:v==='sup'?tpath.l2:null,l3:v==='sup'?tpath.l3:null};
+   else if(lv==='2'){tpath.l1='sup';tpath.l2=v;if(v!=='platform')tpath.l3=null;else if(!tpath.l3)tpath.l3=null;}
+   else tpath.l3=v;
+   renderTree();});
+ renderTree();}
+
+/* ---------- AI planner ---------- */
+function runAI(){const q=S('aiPrompt').value.toLowerCase();let r=[...ST];
+ if(q.includes('suppress'))r=r.filter(s=>s.regime==='suppressed');if(q.includes('attractor'))r=r.filter(s=>s.regime==='attractor');
+ ['walk','wait','platform'].forEach(k=>{if(q.includes(k))r=r.filter(s=>s.dominant===k);});
+ if(q.includes('underground'))r=r.filter(s=>s.type==='Underground');if(q.includes('elevated'))r=r.filter(s=>s.type.includes('Elevated'));
+ if(q.includes('mta'))r=r.filter(s=>s.owner.includes('MTA'));if(q.includes('dot'))r=r.filter(s=>s.owner.includes('DOT'));
+ if(q.includes('low-cost')||q.includes('low cost'))r=r.filter(s=>s.cost==='$');
+ if(q.includes('within a year')||q.includes('one year')||q.includes('quick'))r=r.filter(s=>['Weeks','Months'].includes(s.delivery));
+ if(q.includes('high')&&q.includes('risk'))r=r.filter(s=>s.tier['2050s']==='red');
+ r.sort((a,b)=>b.fhsr['2050s']-a.fhsr['2050s']);
+ const m=S('aiResult');m.classList.add('show');
+ m.innerHTML=`<div class="answer"><b>Planner:</b> ${r.length?`${r.length} stations match, ranked by 2050s future-heat risk.`:'No stations match all inferred criteria.'}</div>
+  <div class="rlist">${r.slice(0,6).map(s=>`<div class="ritem"><div><b>${s.name}</b> ${bullets(s.routes)}<div class="rt">${s.regime} · ${s.dominant} · ${s.owner} · ${s.delivery} · ${s.cost} · risk ${s.fhsr['2050s']}</div></div><button data-id="${s.label}">Open →</button></div>`).join('')}</div>`;
+ m.querySelectorAll('button').forEach(b=>b.onclick=()=>{tab('prioritize');select(b.dataset.id,true);S('aiOverlay').classList.remove('show');});}
+S('aiBtn').onclick=()=>S('aiOverlay').classList.add('show');S('closeAi').onclick=()=>S('aiOverlay').classList.remove('show');
+S('runAi').onclick=runAI;document.querySelectorAll('.examples button').forEach(b=>b.onclick=()=>{S('aiPrompt').value=b.dataset.q;runAI();});
+
+/* decision path modal (per station) */
+function showPath(s){S('pathOverlay').classList.add('show');S('pathTitle').textContent=`Decision path · ${s.name}`;
+ const step=(n,t,d)=>`<div style="border:1px solid var(--rule);padding:11px 13px;margin:8px 0"><b style="font-family:'Spline Sans Mono',monospace;font-size:11px;color:var(--heat)">${n}</b> &nbsp;<b>${t}</b><div class="rt" style="margin-top:4px">${d}</div></div>`;
+ S('pathMount').innerHTML=step('01 Evidence',`${REGP[s.regime][1]} · ${s.penalty>0?'+':''}${s.penalty}% at 95°F`,`t=${s.t} · ${s.confidence} confidence · ${fmt(s.rides)} afternoon riders/day`)
+  +step('02 Diagnosis',`${s.dominant.toUpperCase()}-dominant`,`walk ${s.walk} · wait ${s.wait} · platform ${s.platform} · ${s.type}`)
+  +step('03 Action',s.action,`Best-fit intervention for a ${s.dominant}-dominant, ${s.type.toLowerCase()} station`)
+  +step('04 Implementation',`${s.owner} · ${s.delivery} · ${s.cost}`,`Priority ${s.fhsr['2050s']}/100 · ${fmt(s.tripsLost['2050s'])} afternoon trips at risk by the 2050s`);}
+S('closePath').onclick=()=>S('pathOverlay').classList.remove('show');
+document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('show');}));
+
+/* theme + foot */
+S('theme').onclick=()=>{const cur=document.documentElement.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');const nx=cur==='dark'?'light':'dark';try{localStorage.setItem('thi-theme',nx);}catch(e){}document.documentElement.setAttribute('data-theme',nx);location.reload();};
+S('globalFoot').innerHTML=`Sources: MTA Hourly Ridership · Open-Meteo ERA5 · MTA Stations &amp; Service Lines · NYC Street Tree Census · DOT CityBench · NYC Heat Vulnerability Index · OpenStreetMap.`;
+
+/* ---------- engage: scannable codes + questionnaire demo ---------- */
+function buildQR(){const N=25,q=2,px=6,dim=(N+q*2)*px;
+ const m=Array.from({length:N},()=>Array(N).fill(0));
+ const fp=(r,c)=>{for(let i=0;i<7;i++)for(let j=0;j<7;j++){const edge=i===0||i===6||j===0||j===6,in3=i>=2&&i<=4&&j>=2&&j<=4;m[r+i][c+j]=(edge||in3)?1:0;}};
+ fp(0,0);fp(0,N-7);fp(N-7,0);
+ let seed=1975318642;const rnd=()=>((seed=(seed*1103515245+12345)&0x7fffffff)/0x7fffffff);
+ for(let r=0;r<N;r++)for(let c=0;c<N;c++){const inF=(r<8&&c<8)||(r<8&&c>=N-8)||(r>=N-8&&c<8);if(inF)continue;m[r][c]=rnd()>.5?1:0;}
+ const ar=N-9,ac=N-9;for(let i=0;i<5;i++)for(let j=0;j<5;j++){const edge=i===0||i===4||j===0||j===4,ctr=i===2&&j===2;m[ar+i][ac+j]=(edge||ctr)?1:0;}
+ let rects='';for(let r=0;r<N;r++)for(let c=0;c<N;c++)if(m[r][c])rects+=`<rect x="${(c+q)*px}" y="${(r+q)*px}" width="${px}" height="${px}"/>`;
+ S('qrMount').innerHTML=`<svg width="${dim}" height="${dim}" viewBox="0 0 ${dim} ${dim}"><rect width="${dim}" height="${dim}" fill="#fff"/><g fill="#0b0e13">${rects}</g></svg>`;}
+function buildNL(){const cols=['#F4C13D','#EE352E','#0039A6','#00933C','#FF6319','#B933AD','#00ADD0'];const R=4,C=8,px=11,g=3;let seed=42;const rnd=()=>((seed=(seed*1103515245+12345)&0x7fffffff)/0x7fffffff);
+ const w=C*(px+g)+g,h=R*(px+g)+g;let sq='';for(let r=0;r<R;r++)for(let c=0;c<C;c++)sq+=`<rect x="${g+c*(px+g)}" y="${g+r*(px+g)}" width="${px}" height="${px}" rx="2" fill="${cols[Math.floor(rnd()*cols.length)]}"/>`;
+ S('nlMount').innerHTML=`<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">${sq}</svg>`;}
+const EQ=[
+ {k:'hot',type:'one',q:'Where did it feel hottest?',help:'Pick the part of your trip.',opts:[['walk','🚶','The walk there'],['wait','🕒','The wait'],['platform','🚉','The platform']]},
+ {k:'why',type:'many',q:'What made it worse?',help:'Choose all that apply.',opts:[['sun','☀️','Direct sun'],['air','🌬️','No airflow'],['shade','⛱️','No shade'],['seat','🪑','No seat'],['wait','⏳','Long wait']]},
+ {k:'trip',type:'one',q:'Did the heat change your trip?',help:'Your honest answer helps us prioritize.',opts:[['delayed','🕐','Delayed it'],['skipped','🚫','Skipped it'],['drove','🚗','Drove instead'],['none','✅','No change']]}];
+let estep=0;const eans={hot:null,why:new Set(),trip:null};
+function eRender(){const scr=S('phone');if(!scr)return;
+ if(estep>=EQ.length){const lbl={walk:'The walk',wait:'The wait',platform:'The platform'}[eans.hot]||'—';
+  const whys=[...eans.why].map(w=>({sun:'direct sun',air:'no airflow',shade:'no shade',seat:'no seat',wait:'long wait'}[w])).join(', ')||'—';
+  const trip={delayed:'Delayed trip',skipped:'Skipped trip',drove:'Drove instead',none:'No change'}[eans.trip]||'—';
+  scr.innerHTML=`<div class="pbar"><div class="u">MTA · Heat Pilot</div><div class="t">Thank you</div><div class="pprog">${EQ.map(()=>'<i class="on"></i>').join('')}</div></div>
+   <div class="pdone"><div class="ok">✓</div><div style="font-size:16px;font-weight:700;margin-top:12px">Response recorded</div><div class="phelp" style="margin-top:4px">This is the structured record the diagnosis receives — geo-tagged to the station.</div>
+   <div class="presult"><div><span class="rl">Station</span><span class="rv">39 Av–Dutch Kills</span></div><div><span class="rl">Hottest leg</span><span class="rv">${lbl}</span></div><div><span class="rl">Drivers</span><span class="rv">${whys}</span></div><div><span class="rl">Trip impact</span><span class="rv">${trip}</span></div></div>
+   <button class="pnext" style="margin:18px auto 0" id="eReset">Restart demo</button></div>`;
+  S('eReset').onclick=()=>{estep=0;eans.hot=null;eans.why=new Set();eans.trip=null;eRender();};return;}
+ const cur=EQ[estep];const val=eans[cur.k];const answered=cur.type==='many'?val.size>0:!!val;
+ scr.innerHTML=`<div class="pbar"><div class="u">MTA · Heat Pilot · ${estep+1}/${EQ.length}</div><div class="t">20-second heat check</div><div class="pprog">${EQ.map((_,i)=>`<i class="${i<=estep?'on':''}"></i>`).join('')}</div></div>
+  <div class="pbody"><div class="pq">${cur.q}</div><div class="phelp">${cur.help}</div>
+   <div class="popts">${cur.opts.map(o=>{const on=cur.type==='many'?val.has(o[0]):val===o[0];return `<button class="popt ${on?'sel':''}" data-v="${o[0]}"><span class="em">${o[1]}</span>${o[2]}<span class="ck">✓</span></button>`;}).join('')}</div></div>
+  <div class="pfoot">${estep>0?'<button class="pback" id="eBack">← Back</button>':''}<button class="pnext" id="eNext" ${answered?'':'disabled'}>${estep===EQ.length-1?'Submit':'Next'}</button></div>`;
+ scr.querySelectorAll('.popt').forEach(b=>b.onclick=()=>{const v=b.dataset.v;if(cur.type==='many'){val.has(v)?val.delete(v):val.add(v);}else{eans[cur.k]=v;}eRender();});
+ const nx=S('eNext');if(nx)nx.onclick=()=>{if(answered){estep++;eRender();}};
+ const bk=S('eBack');if(bk)bk.onclick=()=>{estep--;eRender();};}
+
+/* init */
+document.documentElement.setAttribute('data-tab','prioritize');
+buildSelectors();initMap();renderDash();buildQR();buildNL();eRender();
+if(ST.length)select(ST[0].label,false);   // auto-select top station so the stop-analysis panel is populated
+</script>

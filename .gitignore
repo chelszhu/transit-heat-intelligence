@@ -1,0 +1,13 @@
+# macOS
+.DS_Store
+# python
+__pycache__/
+*.pyc
+# regenerable pipeline artifacts — too large for GitHub, rebuilt by the scripts:
+#   build_graph_nyc.py -> nyc_walk_graph.pkl
+#   pull_amen_nyc.py   -> data/trees_nyc.json
+#   pull_ride_nyc.py   -> data/ridership_afternoon_nyc.json
+build/nyc_walk_graph.pkl
+data/trees_nyc.json
+data/ridership_afternoon_nyc.json
+build/cache/
