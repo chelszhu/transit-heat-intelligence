@@ -122,19 +122,33 @@ for n,(cid,m) in enumerate(items):
 log("legs done")
 
 # leg burdens (normalized citywide)
+# walk = approach heat (inverse street-tree canopy); platform = on-platform heat INTENSITY
+# (structure/sun exposure); wait = on-platform exposure DURATION = expected time waiting for a
+# train, from scheduled service frequency. On a subway the wait happens on the platform, so wait
+# and platform are the two multiplicative parts of the platform heat dose (duration x intensity),
+# not street furniture. Service frequency here proxies MTA GTFS scheduled headways / on-time
+# performance; a production build plugs those feeds in directly.
 def mm(v):
     v=np.array(v,float);lo,hi=v.min(),v.max();return (v-lo)/(hi-lo) if hi>lo else np.zeros_like(v)
-canopy_n=mm([m["canopy"] for _,m in items]);seat_n=mm([m["seats"] for _,m in items])
+canopy_n=mm([m["canopy"] for _,m in items])
 PB={"elevated":100,"open":70,"underground":55}
+TPH={'1':12,'2':12,'3':10,'4':12,'5':10,'6':15,'7':16,'A':12,'C':8,'E':14,'B':8,'D':10,'F':13,'M':8,'G':8,
+ 'J':8,'Z':4,'L':18,'N':10,'Q':13,'R':9,'W':6,'S':10,'SI':4,'SIR':4,'H':4,'T':8}
+def routes_of(nm): return re.findall(r'[A-Z0-9]+(?=[,)])|(?<=\()[A-Z0-9]+',nm)[:6]
+def mean_tph(nm):
+    v=[TPH.get(r,8) for r in routes_of(nm)] or [8];return sum(v)/len(v)
+waitraw=[30.0/mean_tph(m["name"]) for _,m in items]           # expected wait (min), higher = worse
+order=sorted(range(len(items)),key=lambda i:waitraw[i]);waitp=[0.0]*len(items)
+for rank,i in enumerate(order): waitp[i]=rank/(len(items)-1)   # percentile: how this wait ranks citywide
 for i,(cid,m) in enumerate(items):
-    m["walk"]=round(100*(1-canopy_n[i]));m["wait"]=round(100*(1-seat_n[i]));m["platform"]=PB[m["ptype"]]
+    m["walk"]=round(100*(1-canopy_n[i]));m["wait"]=round(100*waitp[i]);m["platform"]=PB[m["ptype"]]
     legs={"walk":m["walk"],"wait":m["wait"],"platform":m["platform"]};m["dominant"]=max(legs,key=legs.get)
     m["burden"]=round((m["walk"]+m["wait"]+m["platform"])/3)
 
 # ---------- FHSR + fields ----------
 EXT={"2020s":6,"2030s":15,"2050s":37};TYPE={"elevated":"Elevated / Open","open":"Open Cut","underground":"Underground"}
 FB={"platform_elevated":["direct sun","platform too hot","no airflow"],"platform_open":["direct sun","exposed platform"],
-    "platform_underground":["stuffy","no airflow","platform heat"],"wait":["long wait","no seating","no shelter"],
+    "platform_underground":["stuffy","no airflow","platform heat"],"wait":["long wait","infrequent service","train delays"],
     "walk":["hot walk","no shade on approach"],"attractor":["crowded platform","sun exposure","long exposed wait"],"neutral":["warm platform","occasional crowding"]}
 def prescribe(reg,dom,pt):
     # Every complex here is an MTA-operated subway station; MTA owns and maintains the
@@ -145,9 +159,9 @@ def prescribe(reg,dom,pt):
     if reg=="neutral": return("Monitor + rider feedback","MTA","Monitor","$")
     if dom=="walk": return("Street trees + shaded approach","Parks / DOT","Years","$")
     if dom=="wait":
-        # waiting happens on the platform/mezzanine, inside the station -> MTA
-        if pt=="underground": return("Platform seating + mezzanine cooling","MTA","Months","$$")
-        return("Platform shade + seating","MTA","Weeks","$")
+        # long exposed wait on the platform -> shorten it (service frequency / reliability) and
+        # cool the unavoidable wait; both are MTA operations + facilities
+        return("Service frequency + platform cooling","MTA","Months","$$")
     if pt=="underground": return("Ventilation + thermal management","MTA","Years","$$$")
     return("Shade canopy + reflective roof","MTA","Months","$$")
 def conf(t):

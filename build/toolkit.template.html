@@ -472,7 +472,7 @@ a{color:var(--heat)}
       <div><b>MTA Subway Hourly Ridership, 2020–2024</b><span>NY State Open Data · <code>wujg-7c2s</code>. OMNY + MetroCard boardings per station complex per hour, aggregated to afternoon (12:00–20:00) totals per station-day.</span></div>
       <div><b>Open-Meteo Historical Weather (ERA5 reanalysis)</b><span>Daily apparent-maximum temperature and precipitation at a central-NYC grid point (40.74, −73.82).</span></div>
       <div><b>MTA Subway Stations &amp; Service Lines</b><span>NY State Open Data · <code>39hk-dx4f</code> and <code>s692-irgq</code> (route geometry). Each complex carries MTA's structure classification — <b>Underground</b> (below street, in tunnel or cut-and-cover), <b>Elevated</b> (on viaducts above the street), <b>Open Cut</b> (in a trench below street with bridges over), and <b>At-Grade / Embankment</b> (on the surface). Because the heat exposure of the open-air forms is similar, the tool groups Elevated and At-Grade as <b>Elevated / Open</b>, keeping Open Cut and Underground separate.</span></div>
-      <div><b>NYC Street Tree Census · DOT bus-stop shelters &amp; CityBench · NYC Heat Vulnerability Index · OpenStreetMap</b><span>Canopy, seating, social heat-vulnerability, and the pedestrian network — used for the exposure decomposition and the priority index.</span></div>
+      <div><b>NYC Street Tree Census · MTA scheduled service (headways) · NYC Heat Vulnerability Index · OpenStreetMap</b><span>Street-tree canopy (the <i>walk</i> leg), train frequency (the <i>wait</i> leg — proxied here from nominal peak trains-per-hour, standing in for GTFS/on-time-performance feeds), social heat-vulnerability, and the pedestrian network — used for the exposure decomposition and the priority index.</span></div>
     </div>
 
     <h3 class="rh" id="s-empirical">2&nbsp;·&nbsp;Empirical strategy</h3>
@@ -491,8 +491,15 @@ a{color:var(--heat)}
     <div class="rtwrap"><table class="rtable" id="rTable"></table></div>
 
     <h3 class="rh" id="s-decomp">4&nbsp;·&nbsp;Decomposing exposure: walk, wait, or platform</h3>
+    <p class="rp">A statistically suppressed station tells us heat costs riders, but not <i>where on the trip</i> the heat is felt — and that is what determines who fixes it and how. We decompose each station's afternoon heat exposure into three legs, scored 0–100 so they can be compared directly, and take the largest as the <b>dominant burden</b>.</p>
+    <p class="rp">The framing matters for a subway. A rider's heat load on the platform is a <b>dose = intensity × duration</b>: how hot the platform is, times how long they stand on it. We therefore split the on-platform experience into two distinct, separately-fixable legs — <b>platform</b> (intensity) and <b>wait</b> (duration) — rather than treating them as one. (In an earlier bus-oriented version, "wait" meant curbside shelters and benches; on a subway the wait happens <i>on the platform</i>, so that definition simply collapses into "platform." Measuring the wait as exposure <i>time</i> keeps it a real, separate lever.) The three legs:</p>
+    <ul class="rul">
+      <li><b>Walk — approach heat.</b> Scored from street-tree canopy density over the station's 5-minute network walkshed (the actual streets people use to reach the entrance): sparse canopy ⇒ a hot, unshaded approach. This is the one leg on the public sidewalk, off MTA property.</li>
+      <li><b>Platform — heat intensity.</b> How sun-exposed the platform structure is: <b>elevated 100</b> (full sun, no relief), <b>open-cut 70</b> (partly shaded by the trench), <b>underground 55</b> (no direct sun but stagnant, radiant heat). This is a physical property of the structure, so it is scored on a fixed scale rather than ranked.</li>
+      <li><b>Wait — exposure duration.</b> How long a rider is stuck on that platform, from scheduled <b>service frequency</b>: expected wait ≈ 30 ÷ (trains per hour), scored as each station's <b>percentile</b> across the system. Infrequent, single-line outer stations sit high; frequent trunk hubs sit low. Longer waits mean more time absorbing platform heat — the lever here is running more, more-reliable service (and cooling the unavoidable wait), not street furniture.</li>
+    </ul>
     <p class="rp" id="dgFinding"></p>
-    <p class="rp">Because the intervention differs by where heat is felt, we decompose each suppressed station's exposure over its 5-minute network walkshed into three components, each min–max-normalized across stations: <b>walk</b> (inverse street-tree-canopy density on the approach), <b>wait</b> (inverse count of shelters and benches near the entrance), and <b>platform</b> (a structure score — elevated 100, open-cut 70, underground 55). The largest component defines the dominant burden.</p>
+    <p class="rp"><b>On the data.</b> In this build the wait leg is proxied from nominal peak trains-per-hour per line — a stand-in for MTA's GTFS scheduled headways and on-time-performance feeds, which a production deployment would read directly to capture real, time-of-day and reliability-adjusted waits. Because scores are percentiles (wait) or min–max-normalized (walk) across the system, the decomposition is a <b>relative</b> index: "wait-dominant" means the wait ranks worse here than at most stations, not an absolute number of minutes.</p>
     <figure class="rfig">
       <div class="legend" id="dgLeg"></div>
       <div class="chartbox"><svg id="legs" class="ch" viewBox="0 0 760 460" role="img"></svg><div class="tip" id="tipL"></div></div>
@@ -512,7 +519,7 @@ a{color:var(--heat)}
     </ul>
 
     <h3 class="rh" id="s-framework">7&nbsp;·&nbsp;Intervention framework</h3>
-    <p class="rp">Each diagnosis maps to a costed intervention, filtered by owner, delivery timeline and cost. The evidence base favors shade over enclosure: street-tree shade lowers felt temperature by roughly 3°C (about twice a bus shelter), whereas poorly ventilated enclosed shelters can raise it. Trees, however, are slow and street-owned, while platform retrofits are faster and MTA-owned — so the binding constraint is often jurisdiction and timeline, not efficacy.</p>
+    <p class="rp">Each diagnosis maps to a costed intervention, filtered by owner, delivery timeline and cost. The three levers are genuinely different in kind: street-tree shade on the <b>approach</b> lowers felt temperature by roughly 3°C but is slow and street-owned (Parks / DOT); shortening the <b>wait</b> with more frequent, more reliable service is an MTA operations-and-service-planning lever; and cutting <b>platform</b> heat with shade, reflective roofing or ventilation is MTA capital work. Because two of the three sit inside the MTA-operated station and only the approach is on the public street, the binding constraint is usually jurisdiction and timeline, not efficacy.</p>
     <div class="play" id="play"></div>
     <h4 class="rsub">Decision framework</h4>
     <p class="rp">Every station routes through the same logic, from the estimated response to a specific, owned intervention:</p>
@@ -727,7 +734,7 @@ function detailOverview(s){const rp=REGP[s.regime];const aw=s.action.split(' ');
   <div class="fbchips">${s.feedback.map(f=>`<span class="alt">“${f}”</span>`).join('')}</div>
   <button class="fbmore" id="fbMore">View all feedback →</button>
   <div class="dsec-h">Why this action?</div>
-  <div class="whytxt">${s.regime==='suppressed'?`<b>${s.type}</b> station with heat concentrated on the <b>${s.dominant}</b> leg during peak afternoon heat. ${s.dominant==='platform'?'Reflective roofing and a shade canopy cut radiant heat on the platform':s.dominant==='wait'?'An open shade structure and seating cut exposure while riders wait':'Street trees and interim awnings shade the approach'} — helping retain the ${fmt(s.rides)} afternoon riders/day and heading off ${fmt(s.tripsLost['2050s'])} trips at risk by the 2050s.`:s.regime==='attractor'?`Ridership <b>rises</b> on hot days — a destination surge (beach/park), not thermal comfort. Size the station for the peak with seasonal shade, water and crowd-ready platforms rather than chasing lost trips.`:`No statistically significant heat response. Keep monitoring ridership and rider feedback; reassess each season before committing capital.`}</div>
+  <div class="whytxt">${s.regime==='suppressed'?`<b>${s.type}</b> station with heat concentrated on the <b>${s.dominant}</b> leg during peak afternoon heat. ${s.dominant==='platform'?'Reflective roofing and a shade canopy cut radiant heat on the platform':s.dominant==='wait'?'More frequent, reliable service shortens the long exposed wait, with interim platform cooling for the time riders do wait':'Street trees and interim awnings shade the approach'} — helping retain the ${fmt(s.rides)} afternoon riders/day and heading off ${fmt(s.tripsLost['2050s'])} trips at risk by the 2050s.`:s.regime==='attractor'?`Ridership <b>rises</b> on hot days — a destination surge (beach/park), not thermal comfort. Size the station for the peak with seasonal shade, water and crowd-ready platforms rather than chasing lost trips.`:`No statistically significant heat response. Keep monitoring ridership and rider feedback; reassess each season before committing capital.`}</div>
   <button class="reportbtn" id="openPath">View full station report <span style="font-size:12px">↗</span></button>`;}
 function detailEvidence(s){const rp=REGP[s.regime];const beta=(Math.log(1+s.penalty/100)/15*100).toFixed(3);
  return `<div class="dsec-h">Regression estimate</div>
@@ -826,8 +833,8 @@ function buildEvidence(){if(evBuilt)return;evBuilt=true;const m=DATA.meta;
 const LEGC={walk:'--cool',wait:'--amber',platform:'--heat'};let dgBuilt=false;
 function buildDiagnosis(){if(dgBuilt)return;dgBuilt=true;const focus=ST.filter(s=>s.regime==='suppressed');
  const dp=DATA.dom.platform,dw=DATA.dom.wait,dk=DATA.dom.walk;
- S('dgFinding').innerHTML=`Among the ${focus.length} suppressed stations, the dominant heat burden is the <b>platform</b> for ${dp} and the <b>wait</b> for ${dw}; the <b>walk</b> dominates at only ${dk}. Heat is therefore felt overwhelmingly at the stop and on the platform rather than on the approach, which directs intervention toward platform shading and station-area shelter rather than street trees alone.`;
- S('dgLeg').innerHTML=[['walk','walk / shade'],['wait','wait / shelter'],['platform','platform / sun']].map(x=>`<span class="it"><span class="sq" style="background:${css(LEGC[x[0]])}"></span>${x[1]}</span>`).join('');
+ S('dgFinding').innerHTML=`Across the ${focus.length} suppressed stations, the dominant burden is the <b>platform</b> (heat intensity) for ${dp}, the <b>wait</b> (service duration) for ${dw}, and the <b>walk</b> (approach) for ${dk}. Platform-dominant stations are the sun-exposed elevated lines; wait-dominant stations are shaded, mostly underground stops where the real cost is a long, infrequent-service wait rather than sun; walk-dominant stations have bare, low-canopy approaches. Each points to a different owner and fix.`;
+ S('dgLeg').innerHTML=[['walk','walk / shade'],['wait','wait / service'],['platform','platform / sun']].map(x=>`<span class="it"><span class="sq" style="background:${css(LEGC[x[0]])}"></span>${x[1]}</span>`).join('');
  const rows=focus.slice().sort((a,b)=>((b.walk+b.wait+b.platform)-(a.walk+a.wait+a.platform))).slice(0,12);
  const svg=S('legs'),W=760,H=460,ML=150,MR=64,MT=8,MB=26,pw=W-ML-MR,rh=(H-MT-MB)/rows.length,bh=Math.min(18,rh-12),Xv=v=>v/300*pw;
  [0,100,200,300].forEach(v=>{svg.appendChild(el('line',{x1:ML+Xv(v),y1:MT,x2:ML+Xv(v),y2:MT+rows.length*rh-8,class:'gl'}));const t=el('text',{x:ML+Xv(v),y:MT+rows.length*rh+8,'text-anchor':'middle',class:'ax'});t.textContent=v;svg.appendChild(t);});
@@ -840,7 +847,7 @@ function buildDiagnosis(){if(dgBuilt)return;dgBuilt=true;const focus=ST.filter(s
 let pbBuilt=false;
 function buildPlaybook(){if(pbBuilt)return;pbBuilt=true;const p=DATA.play;
  const PLAY=[['--heat',p.elevated,'Full-sun elevated platform','Reflective cool-roof coating + a shade canopy over the platform — trees can’t reach up here.','N/W, J/Z, 7 lines.','MTA','Months · $$'],
- ['--amber',p.wait,'Exposed wait, no seat','Platform-level shade and seating in the waiting zone, plus a cooling / hydration point on heat-alert days — MTA-owned and maintained.','Platform shade cuts felt heat ~3°C at the wait.','MTA','Weeks–Months · $–$$'],
+ ['--amber',p.wait,'Long exposed wait','Shorten the wait itself — more frequent, more reliable service — and cool the unavoidable wait with platform shade / a hydration point on heat-alert days. MTA operations + facilities.','Halving a 10-min wait halves platform heat-exposure time.','MTA','Months · $$'],
  ['--heat',p.underground,'Underground furnace','Ventilation first, then radiant cooling / a thermal-energy network — NYC’s 2026 pilot.','Platforms hit 100°F+; reuses waste heat.','MTA','Years · $$$'],
  ['--cool',p.walk,'Bare, low-canopy walk','Street trees — cheapest, most effective cooling — plus interim awnings while they grow.','Tree shade ~3.2°C; limited by sidewalk width.','Parks / DOT','Years · $'],
  ['--cool',p.beach,'Beach surge terminal','Seasonal shade, water and crowd-ready platforms — cool the peak, don’t chase lost trips.','Rockaway A/S gain up to +78%.','MTA / Parks','Seasonal · $$']];
@@ -851,7 +858,7 @@ function prescribeJS(reg,dom,ug){
  if(reg==='attractor')return['Seasonal shade + water + crowd readiness','MTA / Parks','Seasonal','$$'];
  if(reg==='neutral')return['Monitor + rider feedback','MTA','Monitor','$'];
  if(dom==='walk')return['Street trees + shaded approach','Parks / DOT','Years','$'];
- if(dom==='wait')return ug?['Platform seating + mezzanine cooling','MTA','Months','$$']:['Platform shade + seating','MTA','Weeks','$'];
+ if(dom==='wait')return['Service frequency + platform cooling','MTA','Months','$$'];
  return ug?['Ventilation + thermal management','MTA','Years','$$$']:['Shade canopy + reflective roof','MTA','Months','$$'];}
 let tpath={l1:'sup',l2:'platform',l3:'elevated'};
 function treePathFromStation(s){if(!s)return;
@@ -932,7 +939,7 @@ document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{
 
 /* theme + foot */
 S('theme').onclick=()=>{const cur=document.documentElement.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');const nx=cur==='dark'?'light':'dark';try{localStorage.setItem('thi-theme',nx);}catch(e){}document.documentElement.setAttribute('data-theme',nx);location.reload();};
-S('globalFoot').innerHTML=`Sources: MTA Hourly Ridership · Open-Meteo ERA5 · MTA Stations &amp; Service Lines · NYC Street Tree Census · DOT CityBench · NYC Heat Vulnerability Index · OpenStreetMap.`;
+S('globalFoot').innerHTML=`Sources: MTA Hourly Ridership · Open-Meteo ERA5 · MTA Stations &amp; Service Lines · MTA scheduled service (headways) · NYC Street Tree Census · NYC Heat Vulnerability Index · OpenStreetMap.`;
 
 /* ---------- engage: scannable codes + questionnaire demo ---------- */
 function buildQR(){const N=25,q=2,px=6,dim=(N+q*2)*px;
