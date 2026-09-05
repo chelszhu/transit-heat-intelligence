@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Full citywide pipeline: heat model + leg decomposition + Future Heat Service Risk -> thi.json (ALL NYC)."""
+"""Full citywide pipeline: heat model + exposure decomposition + Future Heat Service Risk -> thi.json (ALL NYC)."""
 import json, os, re, math, pickle, datetime as dt, warnings
 warnings.filterwarnings("ignore")
 import numpy as np, networkx as nx
@@ -74,7 +74,7 @@ def ptype_of(cid):
     if ss & {"Open Cut","At Grade","Embankment"}: return "open"
     return "underground"
 
-# ---------- LEGS via NYC graph ----------
+# ---------- COMPONENTS via NYC graph ----------
 Gp=pickle.load(open(os.path.join(D,"nyc_walk_graph.pkl"),"rb"));CRS=Gp.graph["crs"]
 fwd=Transformer.from_crs("EPSG:4326",CRS,always_xy=True).transform
 inv=Transformer.from_crs(CRS,"EPSG:4326",always_xy=True).transform
@@ -118,10 +118,10 @@ for n,(cid,m) in enumerate(items):
     zs=[tzip[i] for i in ti if tzip[i]]
     zc=max(set(zs),key=zs.count) if zs else tzip[int(tkdt.query([x,yv])[1])]
     m["hvi"]=hvi_map.get(zc,3);m["ptype"]=ptype_of(cid)
-    if n%80==0: log(f"  legs {n}/{len(items)}")
-log("legs done")
+    if n%80==0: log(f"  components {n}/{len(items)}")
+log("components done")
 
-# leg burdens (normalized citywide)
+# component burdens (normalized citywide)
 # walk = approach heat (inverse street-tree canopy); platform = on-platform heat INTENSITY
 # (structure/sun exposure); wait = on-platform exposure DURATION = expected time waiting for a
 # train, from scheduled service frequency. On a subway the wait happens on the platform, so wait
@@ -152,7 +152,7 @@ FB={"platform_elevated":["direct sun","platform too hot","no airflow"],"platform
     "walk":["hot walk","no shade on approach"],"attractor":["crowded platform","sun exposure","long exposed wait"],"neutral":["warm platform","occasional crowding"]}
 def prescribe(reg,dom,pt):
     # Every complex here is an MTA-operated subway station; MTA owns and maintains the
-    # whole envelope (platform, mezzanine, waiting area). Only the "walk" leg — the public
+    # whole envelope (platform, mezzanine, waiting area). Only the "walk" component — the public
     # sidewalk approach, cooled by street trees — leaves MTA property. Station type (pt)
     # sets the nature of the on-station fix.
     if reg=="attractor": return("Seasonal shade + water + crowd readiness","MTA / Parks","Seasonal","$$")
