@@ -51,6 +51,9 @@ section.tab{display:none;padding:22px 0 72px}section.tab.on{display:block}
 @media(max-width:1160px){.dash{grid-template-columns:1fr;height:auto}#prioritize{padding:20px 0}.mapbox{flex:none;aspect-ratio:1.3}.tablecard{flex:none}.tablecard .tscroll{overflow:visible}.side,.detail{max-height:none!important}}
 .side .h{font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:11px 0 5px}
 .side .h:first-child{margin-top:2px}
+.chk{display:flex;align-items:center;gap:9px;font-size:12.5px;padding:4px 0;color:var(--ink);cursor:pointer}
+.chk input{accent-color:var(--heat);width:15px;height:15px;margin:0}
+.chk .c{margin-left:auto;font-size:11px;color:var(--faint);font-variant-numeric:tabular-nums}
 .decade{display:flex;background:var(--band);border-radius:var(--r);padding:3px;gap:2px}
 .decade button{flex:1;border:0;background:none;color:var(--muted);font-size:12.5px;font-weight:600;padding:7px 4px;border-radius:6px}
 .decade button.on{background:var(--bg);color:var(--ink);box-shadow:var(--sh)}
@@ -373,7 +376,7 @@ section.tab#analysis{padding:0;height:calc(100vh - 56px);overflow:hidden}
 #globalFoot{margin-top:16px;padding:12px 0 14px;text-align:center}
 :root[data-tab="analysis"] #globalFoot,:root[data-tab="prioritize"] #globalFoot{display:none}
 /* modal */
-.overlay{position:fixed;inset:0;background:rgba(10,15,25,.5);z-index:50;display:none;align-items:flex-start;justify-content:center;padding:44px 20px}.overlay.show{display:flex}
+.overlay{position:fixed;inset:0;background:rgba(10,15,25,.5);z-index:4000;display:none;align-items:flex-start;justify-content:center;padding:44px 20px}.overlay.show{display:flex}
 .modal{width:min(720px,96vw);max-height:86vh;overflow:auto;background:var(--bg);border-radius:12px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
 .modal h3{margin:0;font-weight:700}.close{border:1px solid var(--rule);background:var(--bg);border-radius:7px;width:30px;height:30px;font-size:16px}
 .promptbox{border:1px solid var(--rule);border-radius:var(--r);padding:13px;margin-top:14px}
@@ -610,11 +613,12 @@ function buildMulti(mountId,pairs,sel,label,opts){opts=opts||{};const isRoute=op
  sync();}
 function buildSelectors(){
  const boroCount={};ST.forEach(s=>boroCount[s.boro]=(boroCount[s.boro]||0)+1);
+ // Route + Borough stay as dropdowns (long lists); the categorical filters show inline
  buildMulti('mselRoute',ALLROUTES.map(r=>[r,r]),routeSel,'lines',{route:true,onChange:()=>{renderDash();zoomToFiltered();}});
  buildMulti('mselBoro',ALLBORO.map(b=>[b,b]),boroSel,'boroughs',{counts:boroCount,onChange:()=>{renderDash();zoomToFiltered();}});
- S('filters').innerHTML=filterDefs.map(([t,k])=>`<div class="h">${t}</div><div class="msel" id="msel_${k}"></div>`).join('');
- const shortLbl={regime:'responses',dominant:'exposures',type:'types',owner:'owners',cost:'levels'};
- filterDefs.forEach(([t,k,opts])=>{const cnt={};ST.forEach(s=>cnt[s[k]]=(cnt[s[k]]||0)+1);buildMulti('msel_'+k,opts,filterState[k],shortLbl[k],{counts:cnt,onChange:()=>renderDash()});});}
+ S('filters').innerHTML=filterDefs.map(([t,k,opts])=>`<div class="h">${t}</div>`+
+  opts.map(([v,l])=>`<label class="chk"><input type="checkbox" data-k="${k}" value="${v}" ${filterState[k].has(v)?'checked':''}><span>${l}</span><span class="c">${ST.filter(s=>s[k]===v).length}</span></label>`).join('')).join('');
+ S('filters').querySelectorAll('input').forEach(i=>i.addEventListener('change',()=>{const set=filterState[i.dataset.k];i.checked?set.add(i.value):set.delete(i.value);renderDash();}));}
 document.addEventListener('click',()=>document.querySelectorAll('.mselpanel').forEach(p=>p.hidden=true));
 function zoomToFiltered(){if(!lmap)return;const f=filtered();if(!f.length)return;const b=L.latLngBounds(f.map(s=>[s.lat,s.lon]));lmap.flyToBounds(b,{padding:[36,36],maxZoom:15,duration:.55});}
 function zoomAll(){if(!lmap)return;const b=DATA.bounds;lmap.flyToBounds([[b[1],b[0]],[b[3],b[2]]],{padding:[6,6],duration:.5});}
@@ -724,8 +728,7 @@ function detailOverview(s){const rp=REGP[s.regime];const aw=s.action.split(' ');
   <button class="fbmore" id="fbMore">View all feedback →</button>
   <div class="dsec-h">Why this action?</div>
   <div class="whytxt">${s.regime==='suppressed'?`<b>${s.type}</b> station with heat concentrated on the <b>${s.dominant}</b> leg during peak afternoon heat. ${s.dominant==='platform'?'Reflective roofing and a shade canopy cut radiant heat on the platform':s.dominant==='wait'?'An open shade structure and seating cut exposure while riders wait':'Street trees and interim awnings shade the approach'} — helping retain the ${fmt(s.rides)} afternoon riders/day and heading off ${fmt(s.tripsLost['2050s'])} trips at risk by the 2050s.`:s.regime==='attractor'?`Ridership <b>rises</b> on hot days — a destination surge (beach/park), not thermal comfort. Size the station for the peak with seasonal shade, water and crowd-ready platforms rather than chasing lost trips.`:`No statistically significant heat response. Keep monitoring ridership and rider feedback; reassess each season before committing capital.`}</div>
-  <button class="reportbtn" id="openPath">View full station report <span style="font-size:12px">↗</span></button>
-  <button class="reportbtn" id="exportCard" style="margin-top:9px">⤓ Export action card (PNG)</button>`;}
+  <button class="reportbtn" id="openPath">View full station report <span style="font-size:12px">↗</span></button>`;}
 function detailEvidence(s){const rp=REGP[s.regime];const beta=(Math.log(1+s.penalty/100)/15*100).toFixed(3);
  return `<div class="dsec-h">Regression estimate</div>
   <div class="evk">
@@ -770,63 +773,10 @@ function renderDetail(){const s=selected;const box=S('detail');
  S('dStar').onclick=()=>{isFav?FAV.delete(s.label):FAV.add(s.label);try{localStorage.setItem('thi-fav',JSON.stringify([...FAV]));}catch(e){}renderDetail();};
  box.querySelectorAll('.dtab').forEach(b=>b.onclick=()=>{detailTab=b.dataset.dt;renderDetail();});
  const op=S('openPath');if(op)op.onclick=()=>showPath(s);
- const ec=S('exportCard');if(ec)ec.onclick=()=>exportCard(s);
  const fm=S('fbMore');if(fm)fm.onclick=()=>{detailTab='feedback';renderDetail();};
  if(prev)S('dPrev').onclick=()=>select(prev.label,true);
  if(next)S('dNext').onclick=()=>select(next.label,true);}
 
-/* ---------- export station action card (PNG) ---------- */
-function downloadCard(svg,w,h,name){const blob=new Blob([svg],{type:'image/svg+xml;charset=utf-8'});const url=URL.createObjectURL(blob);const img=new Image();
- img.onload=()=>{const sc=2,c=document.createElement('canvas');c.width=w*sc;c.height=h*sc;const x=c.getContext('2d');x.setTransform(sc,0,0,sc,0,0);x.fillStyle='#fff';x.fillRect(0,0,w,h);x.drawImage(img,0,0);URL.revokeObjectURL(url);
-  try{c.toBlob(b=>{const a=document.createElement('a');a.download=name+'.png';a.href=URL.createObjectURL(b);document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500);},'image/png');}
-  catch(e){const a=document.createElement('a');a.download=name+'.svg';a.href='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);a.click();}};
- img.onerror=()=>{const a=document.createElement('a');a.download=name+'.svg';a.href=url;document.body.appendChild(a);a.click();a.remove();};
- img.src=url;}
-function exportCard(s){const W=980,H=300,F='Arial, Helvetica, sans-serif';
- const navy='#0F1D30',ink='#1B2431',mut='#69727F',rule='#E7E9EE',heat='#DA3B24',good='#2E9E6B',cool='#2C6E8F';
- const esc=t=>String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
- const T=(x,y,t,o)=>{o=o||{};return `<text x="${x}" y="${y}" font-family="${F}" font-size="${o.s||13}" font-weight="${o.w||400}" fill="${o.c||ink}" text-anchor="${o.a||'start'}" letter-spacing="${o.ls||0}">${esc(t)}</text>`;};
- const bulletsSVG=(x,y,routes)=>{let cx=x;return (routes||[]).map(r=>{const col=MTA[r]||'#5A5A5A',dark=MTA_BLACK.has(r);const g=`<circle cx="${cx+11}" cy="${y}" r="11" fill="${col}"/>`+T(cx+11,y+4,r,{s:12,w:700,c:dark?'#121212':'#fff',a:'middle'});cx+=25;return g;}).join('');};
- const ug=s.type==='Underground',ocut=s.type==='Open Cut';
- // left schematic panel (illustrative, by structure type — not a photo)
- const panelBg=ug?'#243244':ocut?'#c3d6cf':'#cfe3f2';
- const typeCap=ug?'UNDERGROUND':ocut?'OPEN CUT':'ELEVATED / OPEN';
- const trainCol=ug?'#3d5674':'#5f7488',glass=ug?'#6f8bab':'#aebfce';
- let scene=`<rect x="16" y="54" width="300" height="196" rx="10" fill="${panelBg}"/>`;
- scene+=`<rect x="16" y="196" width="300" height="54" rx="0" fill="rgba(0,0,0,.10)"/>`;               // platform slab
- scene+=`<rect x="96" y="96" width="140" height="74" rx="12" fill="${trainCol}"/>`;                     // train body
- scene+=`<rect x="108" y="110" width="52" height="30" rx="5" fill="${glass}"/><rect x="172" y="110" width="52" height="30" rx="5" fill="${glass}"/>`;
- scene+=`<circle cx="120" cy="176" r="9" fill="#2c3947"/><circle cx="212" cy="176" r="9" fill="#2c3947"/>`;
- scene+=`<rect x="40" y="200" width="252" height="4" rx="2" fill="rgba(255,255,255,.55)"/>`;             // platform edge
- scene+=T(166,236,typeCap,{s:12,w:700,c:ug?'#9fb2c8':'#5b6b7d',a:'middle',ls:1.2});
- // header
- let g=`<rect x="0" y="0" width="${W}" height="42" fill="${navy}"/>`+T(W/2,27,'STATION ACTION CARD',{s:14,w:700,c:'#fff',a:'middle',ls:2});
- g+=scene;
- // divider between middle and right
- g+=`<line x1="654" y1="60" x2="654" y2="250" stroke="${rule}" stroke-width="1"/>`;
- // middle column
- g+=T(340,90,s.name,{s:23,w:700});g+=bulletsSVG(344+s.name.length*12.2,82,s.routes);
- const midRow=(y,label,valSVG)=>T(340,y,label,{s:13,c:mut})+valSVG;
- const rc={suppressed:heat,attractor:good,neutral:mut}[s.regime],rl=REGP[s.regime][1].toUpperCase(),bw=rl.length*7.6+22;
- g+=midRow(134,'Heat Response',`<rect x="500" y="119" width="${bw}" height="22" rx="5" fill="none" stroke="${rc}" stroke-width="1.4"/>`+T(500+bw/2,134,rl,{s:11,w:700,c:rc,a:'middle',ls:.4}));
- g+=midRow(172,'95°F Penalty',T(500,172,(s.penalty>0?'+':'')+s.penalty+'%',{s:17,w:700,c:s.penalty<0?heat:good}));
- g+=midRow(208,'Dominant Exposure',T(500,208,s.dominant.toUpperCase(),{s:15,w:700}));
- g+=midRow(244,'Station Type',T(500,244,s.type,{s:15,w:700}));
- // right column
- const RX=674,RV=958;
- const aw=s.action.split(' ');let l1='',l2='';aw.forEach(w=>{if(!l1||(l1+' '+w).length<=20)l1=(l1?l1+' ':'')+w;else l2=(l2?l2+' ':'')+w;});
- g+=T(RX,84,'Recommended Action',{s:13,c:mut})+T(RV,84,l1,{s:15,w:700,c:good,a:'end'})+(l2?T(RV,104,l2,{s:15,w:700,c:good,a:'end'}):'');
- const rightRow=(y,label,val)=>T(RX,y,label,{s:13,c:mut})+T(RV,y,val,{s:15,w:700,a:'end'});
- g+=rightRow(140,'Owner',s.owner);
- g+=rightRow(174,'Delivery',(DELIV[s.delivery]||s.delivery));
- g+=rightRow(208,'Cost',(COSTL[s.cost]||s.cost));
- g+=rightRow(242,'Confidence',s.confidence);
- // footer feedback
- g+=`<line x1="16" y1="262" x2="${W-16}" y2="262" stroke="${rule}" stroke-width="1"/>`;
- g+=T(20,288,'Supporting Rider Feedback (AI-structured demo)',{s:12,c:mut});
- let cx=352;(s.feedback||[]).forEach(f=>{const t='“'+f+'”',w=t.length*6.6+20;g+=`<rect x="${cx}" y="276" width="${w}" height="20" rx="10" fill="none" stroke="${rule}"/>`+T(cx+w/2,289,t,{s:11,c:cool,a:'middle'});cx+=w+8;});
- const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" fill="#fff"/><rect x="0.5" y="0.5" width="${W-1}" height="${H-1}" fill="none" stroke="${rule}"/>${g}</svg>`;
- downloadCard(svg,W,H,s.name.replace(/[^\w]+/g,'_')+'_action_card');}
 /* ---------- tabs ---------- */
 let tocBuilt=false;
 function initTOC(){if(tocBuilt)return;tocBuilt=true;const rpt=S('rpt'),nav=S('tocNav');if(!rpt||!nav)return;
