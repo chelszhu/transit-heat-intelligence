@@ -522,7 +522,7 @@ a{color:var(--heat)}
     <p class="rp">Each diagnosis maps to a costed intervention, filtered by owner, delivery timeline and cost. The three levers are genuinely different in kind: street-tree shade on the <b>approach</b> lowers felt temperature by roughly 3°C but is slow and street-owned (Parks / DOT); shortening the <b>wait</b> with more frequent, more reliable service is an MTA operations-and-service-planning lever; and cutting <b>platform</b> heat with shade, reflective roofing or ventilation is MTA capital work. Because two of the three sit inside the MTA-operated station and only the approach is on the public street, the binding constraint is usually jurisdiction and timeline, not efficacy.</p>
     <div class="play" id="play"></div>
     <h4 class="rsub">Decision framework</h4>
-    <p class="rp">Every station routes through the same logic, from the estimated response to a specific, owned intervention:</p>
+    <p class="rp">Every station routes through one transparent sequence: <b>evidence → diagnosis → action → implementation filter → validation</b>. The implementation filter makes owner, delivery, cost and delivery type explicit rather than treating them as metadata after an action is chosen.</p>
     <div class="tree" id="tree"></div>
     </div>
    </div>
@@ -530,11 +530,11 @@ a{color:var(--heat)}
 
   <!-- ENGAGE -->
   <section class="tab" id="engage">
-    <div class="kick">Future data · Public engagement</div>
+    <div class="kick">Future evidence layer · Public engagement</div>
     <h2 class="big2">Let riders tell us where it feels hottest.</h2>
     <div class="egrid3">
       <div class="ecol-desc">
-        <p class="edesc">A scannable code on station posters opens a <b>20-second</b> mobile form — no app. Structured answers feed the <b>walk / wait / platform</b> diagnosis directly. The intake is built on lessons from the MTA's <b>NaviLens</b> rollout:</p>
+        <p class="edesc">A station-specific QR concept opens a <b>20-second</b> mobile survey. Responses are geo-tagged and structured into <b>walk / wait / platform</b> evidence. In a production pilot, reports would validate, challenge, or increase confidence in the modeled diagnosis — they would <b>not</b> autonomously choose an intervention.</p>
         <div class="efeat">
           <div class="f"><span class="fi">📡</span><div><div class="ft">Scans at a distance</div><div class="fd">Reads from ~3&nbsp;m, off-axis, no focusing.</div></div></div>
           <div class="f"><span class="fi">🌐</span><div><div class="ft">Multilingual</div><div class="fd">30+ languages, auto-localized per rider.</div></div></div>
@@ -545,14 +545,14 @@ a{color:var(--heat)}
       <div class="poster">
         <div class="ptag">MTA · HEAT PILOT</div>
         <div class="ph">Where does it<br>feel hottest?</div>
-        <div class="psub">Scan · 20 seconds · no app</div>
+        <div class="psub">Concept code · visual prototype</div>
         <div class="qrbox" id="qrMount"></div>
         <div class="navilens"><div class="nl">NaviLens-style code · high-contrast, scan-at-distance</div><div class="nlcode" id="nlMount"></div></div>
         <div class="langs">EN · ES · 中文 · Русский · বাংলা · +30</div>
       </div>
       <div class="phone"><div class="pscreen" id="phone"></div></div>
     </div>
-    <div class="foot">Rider feedback shown in station cards is <b>illustrative</b> — generated from each station's dominant exposure to demonstrate the intake. Real deployment replaces it with scan responses, structured and geo-tagged by station.</div>
+    <div class="foot">QR concept demo — not connected to a live survey. Rider feedback shown in station cards is <b>illustrative</b>; in deployment, structured geo-tagged reports would support a field audit and the transparent decision framework would remain the source of recommendation logic.</div>
   </section>
 
   <div class="foot" id="globalFoot"></div>
@@ -565,7 +565,7 @@ a{color:var(--heat)}
   <div class="airesult" id="aiResult"></div>
 </div></div>
 <!-- Decision path modal -->
-<div class="overlay" id="pathOverlay"><div class="modal"><div style="display:flex;justify-content:space-between;align-items:center"><div><h3 id="pathTitle">Decision path</h3><div class="rt">Evidence → diagnosis → action → implementation</div></div><button class="close" id="closePath">×</button></div><div id="pathMount" style="margin-top:14px"></div></div></div>
+<div class="overlay" id="pathOverlay"><div class="modal"><div style="display:flex;justify-content:space-between;align-items:center"><div><h3 id="pathTitle">Decision path</h3><div class="rt">Evidence → diagnosis → action → implementation filter → validation</div></div><button class="close" id="closePath">×</button></div><div id="pathMount" style="margin-top:14px"></div></div></div>
 
 <script>
 const DATA=__DATADATA__;
@@ -592,14 +592,15 @@ const routeSel=new Set(ALLROUTES), boroSel=new Set(ALLBORO);
 const TIER={red:'--red',amber:'--yel',green:'--grn',none:'--faint'};
 const REGP={suppressed:['sup','Suppressed'],attractor:['att','Attractor'],neutral:['neu','Neutral']};
 const filterState={regime:new Set(['suppressed','neutral','attractor']),dominant:new Set(['walk','wait','platform']),
- type:new Set(['Elevated / Open','Open Cut','Underground']),owner:new Set([...new Set(ST.map(s=>s.owner))]),cost:new Set(['$','$$','$$$'])};
+ type:new Set(['Elevated / Open','Open Cut','Underground']),owner:new Set([...new Set(ST.map(s=>recommendationFor(s).owner))]),cost:new Set(['$','$$','$$$'])};
 const filterDefs=[['Heat response','regime',[['suppressed','Suppressed'],['neutral','Neutral'],['attractor','Attractor']]],
  ['Dominant exposure','dominant',[['walk','Walk'],['wait','Wait'],['platform','Platform']]],
  ['Station type','type',[['Elevated / Open','Elevated / Open'],['Open Cut','Open Cut'],['Underground','Underground']]],
- ['Owner','owner',[...new Set(ST.map(s=>s.owner))].map(o=>[o,o])],
+ ['Owner','owner',[...new Set(ST.map(s=>recommendationFor(s).owner))].map(o=>[o,o])],
  ['Cost','cost',[['$','$ Low'],['$$','$$ Medium'],['$$$','$$$ High']]]];
 function passes(s){
- if(!['regime','dominant','type','owner','cost'].every(k=>filterState[k].has(s[k])))return false;
+ if(!['regime','dominant','type'].every(k=>filterState[k].has(s[k])))return false;
+ const r=recommendationFor(s);if(!filterState.owner.has(r.owner)||!filterState.cost.has(r.cost))return false;
  if(!(s.routes||[]).some(r=>routeSel.has(r)))return false;
  if(!boroSel.has(s.boro))return false;
  if(areaBounds&&!areaBounds.contains([s.lat,s.lon]))return false;
@@ -624,7 +625,7 @@ function buildSelectors(){
  buildMulti('mselRoute',ALLROUTES.map(r=>[r,r]),routeSel,'lines',{route:true,onChange:()=>{renderDash();zoomToFiltered();}});
  buildMulti('mselBoro',ALLBORO.map(b=>[b,b]),boroSel,'boroughs',{counts:boroCount,onChange:()=>{renderDash();zoomToFiltered();}});
  S('filters').innerHTML=filterDefs.map(([t,k,opts])=>`<div class="h">${t}</div>`+
-  opts.map(([v,l])=>`<label class="chk"><input type="checkbox" data-k="${k}" value="${v}" ${filterState[k].has(v)?'checked':''}><span>${l}</span><span class="c">${ST.filter(s=>s[k]===v).length}</span></label>`).join('')).join('');
+  opts.map(([v,l])=>`<label class="chk"><input type="checkbox" data-k="${k}" value="${v}" ${filterState[k].has(v)?'checked':''}><span>${l}</span><span class="c">${ST.filter(s=>(k==='owner'?recommendationFor(s).owner:k==='cost'?recommendationFor(s).cost:s[k])===v).length}</span></label>`).join('')).join('');
  S('filters').querySelectorAll('input').forEach(i=>i.addEventListener('change',()=>{const set=filterState[i.dataset.k];i.checked?set.add(i.value):set.delete(i.value);renderDash();}));}
 document.addEventListener('click',()=>document.querySelectorAll('.mselpanel').forEach(p=>p.hidden=true));
 function zoomToFiltered(){if(!lmap)return;const f=filtered();if(!f.length)return;const b=L.latLngBounds(f.map(s=>[s.lat,s.lon]));lmap.flyToBounds(b,{padding:[36,36],maxZoom:15,duration:.55});}
@@ -701,7 +702,7 @@ function renderTable(){const rows=orderedRows();
    <td>${s.ridersTier} <span class="rt">${fmt(s.rides)}/day</span></td>
    <td class="exp ${s.dominant}">${s.dominant}</td>
    <td class="fnum">${s.tripsLost[decade]?fmt(s.tripsLost[decade])+' lost':'—'}</td>
-   <td class="fnum">${s.hvi}/5</td><td>${s.owner}</td><td class="fnum">${s.cost}</td></tr>`).join('')}</tbody></table>`;
+   <td class="fnum">${s.hvi}/5</td><td>${recommendationFor(s).owner}</td><td class="fnum">${recommendationFor(s).cost}</td></tr>`).join('')}</tbody></table>`;
  S('tableMount').querySelectorAll('.row').forEach(r=>r.onclick=()=>select(r.dataset.id,true));}
 
 function orderedRows(){let rows=filtered();const sort=S('sortBy').value;
@@ -716,25 +717,34 @@ const REGSUB={suppressed:'Heat reduces ridership',attractor:'Heat increases ride
 const EXPICON={walk:['🚶','--cool'],wait:['🕒','--amber'],platform:['🚉','--heat']};
 const DELIV={Weeks:'Weeks (0–3 mo)',Months:'Months (3–12 mo)',Years:'Years (>12 mo)',Seasonal:'Seasonal'};
 const COSTL={'$':'$ Low','$$':'$$ Medium','$$$':'$$$ High'};
-const conf3=c=>c.includes('High')&&!c.includes('Medium')?3:(!c.includes('Medium')&&!c.includes('High')&&c.includes('Low')?1:2);
-function detailOverview(s){const rp=REGP[s.regime];const aw=s.action.split(' ');const a1=aw[0],arest=aw.slice(1).join(' ');
- const cN=conf3(s.confidence);
+/* Prototype thresholds: +8% identifies meaningful heat-day demand; burden >=55 identifies a materially exposed approach or long-wait proxy. */
+function getDiagnosisConfidence(s){const t=Math.abs(Number(s.t)||0);return t>=3?'High':t>=1.96?'Medium–High':'Medium';}
+function getInterventionConfidence(s,r){if(s.regime==='neutral')return 'Medium';const a=['walk','wait','platform'].map(k=>Number(s[k])||0).sort((x,y)=>y-x);return a[0]-a[1]>=15&&r.conditionMet?'High':r.conditionMet?'Medium–High':'Medium';}
+function getRecommendation(s){const b={pathway:'',diagnosis:'',conditionCheck:'',conditionMet:false,primaryAction:'',complementaryAction:'',whyThis:'',whyNot:'',owner:'',implementationType:'',delivery:'',cost:'',diagnosisConfidence:'',interventionConfidence:''};
+ if(s.regime==='neutral')return {...b,pathway:'No significant heat response → Monitor',diagnosis:'No statistically significant ridership response.',conditionCheck:'Seasonal monitoring and rider evidence.',primaryAction:'Monitor + rider feedback',complementaryAction:'Seasonal field observation and targeted comfort review.',whyThis:'A null ridership response does not mean no heat discomfort or health burden.',whyNot:'Do not recommend capital intervention solely from the current ridership evidence.',owner:'MTA',implementationType:'Monitoring / Operations',delivery:'Seasonal',cost:'$',diagnosisConfidence:getDiagnosisConfidence(s),interventionConfidence:'Medium'};
+ if(s.regime==='attractor'){const surge=Number(s.penalty)>=8||Number(s.rides)>=5000;return {...b,pathway:surge?'Attractor → Meaningful heat-day demand surge':'Attractor → Monitor heat-day demand',diagnosis:'Heat increases demand; this is a peak-capacity and thermal-comfort problem, not a lost-ridership problem.',conditionCheck:`Meaningful heat-day demand surge? ${surge?'Yes':'No'} (${s.penalty>0?'+':''}${s.penalty}% @ 95°F)`,conditionMet:surge,primaryAction:surge?'Seasonal shade + drinking water + crowd readiness + heat-day service planning':'Monitor heat-day demand and rider comfort',complementaryAction:surge?'Temporary wayfinding, queue management, deployable shade, and hydration.':'Collect seasonal rider comfort and crowd observations.',whyThis:surge?'Observed hot-day demand warrants peak readiness alongside thermal comfort.':'Demand evidence is not yet sufficient for a seasonal operational deployment.',whyNot:surge?'Do not use suppression-oriented mitigation logic because observed demand increases on hot days.':'Do not commit seasonal capacity measures before the demand pattern is validated.',owner:surge?'MTA / Parks':'MTA',implementationType:surge?'Operations + seasonal facilities':'Monitoring / Operations',delivery:'Seasonal',cost:surge?'$$':'$',diagnosisConfidence:getDiagnosisConfidence(s),interventionConfidence:surge?'Medium–High':'Medium'};}
+ if(s.dominant==='walk'){const yes=Number(s.walk)>=55;return {...b,pathway:yes?'Suppressed → Walk dominant → Low canopy / exposed approach':'Suppressed → Walk dominant → Targeted approach audit',diagnosis:'Walk / approach heat is the dominant modeled burden.',conditionCheck:`Low canopy / exposed approach? ${yes?'Yes':'No'} (walk score ${s.walk}; prototype threshold 55)`,conditionMet:yes,primaryAction:yes?'Street trees + shaded approach + interim awnings':'Targeted approach audit + shaded-route improvements',complementaryAction:yes?'Deployable or interim entrance shade while trees mature.':'Review crossing delay, walking distance, surface exposure, entrance placement, and paved intersections.',whyThis:yes?'Approach heat is dominant and available evidence supports insufficient shade.':'The relative canopy proxy is not strong enough to prescribe trees everywhere.',whyNot:yes?'Platform capital work is lower priority because approach burden is larger.':'Do not automatically prescribe trees without locating the specific approach barrier.',owner:yes?'Parks / DOT':'DOT / MTA',implementationType:yes?'Capital / Streetscape':'Planning / targeted capital',delivery:yes?'Years':'Months',cost:'$',diagnosisConfidence:getDiagnosisConfidence(s)};}
+ if(s.dominant==='wait'){const yes=Number(s.wait)>=55;return {...b,pathway:yes?'Suppressed → Wait dominant → Long / unreliable wait':'Suppressed → Wait dominant → Operational validation',diagnosis:'Wait duration is the dominant modeled burden.',conditionCheck:`Long / unreliable wait? ${yes?'Yes':'No'} (wait score ${s.wait}; prototype threshold 55)`,conditionMet:yes,primaryAction:yes?'Service frequency + reliability + heat-day operations':'Operational validation + platform comfort review',complementaryAction:yes?'Platform cooling / hydration for the unavoidable wait.':'Validate actual headways and reliability before escalating.',whyThis:yes?'Exposure duration is the primary lever.':'The relative wait proxy is not strong enough for a direct service recommendation.',whyNot:yes?'Capital cooling alone does not address long exposure duration.':'Do not prescribe more service until actual headways and reliability are validated.',owner:yes?'MTA Operations':'MTA Operations / Facilities',implementationType:yes?'Operations':'Monitoring / planning',delivery:yes?'Months':'Weeks',cost:yes?'$$':'$',diagnosisConfidence:getDiagnosisConfidence(s)};}
+ const ug=s.type==='Underground';return {...b,pathway:`Suppressed → Platform dominant → ${ug?'Underground':'Elevated / Open'}`,diagnosis:`Platform heat intensity dominates at this ${ug?'underground':'open-air'} structure.`,conditionCheck:ug?'Underground structure: no direct solar load.':'Elevated / open structure: direct solar and radiant exposure.',conditionMet:true,primaryAction:ug?'Ventilation + thermal management':'Shade canopy + reflective roof',complementaryAction:ug?'Heat-day ventilation operations and localized cooling pilots.':'Targeted cool-roof coating or deployable shade if a full canopy is constrained.',whyThis:ug?'Ventilation, radiant heat, and accumulated thermal load are the likely physical levers.':'Platform exposure, not approach exposure, dominates at an open-air structure.',whyNot:ug?'Canopy or trees do not address the underground heat mechanism.':'Street-tree investment is lower priority because platform exposure dominates.',owner:ug?'MTA Capital / Facilities':'MTA Capital',implementationType:ug?'Capital / Facilities':'Capital',delivery:ug?'Years':'Months',cost:ug?'$$$':'$$',diagnosisConfidence:getDiagnosisConfidence(s)};}
+function recommendationFor(s){const r=getRecommendation(s);if(!r.interventionConfidence)r.interventionConfidence=getInterventionConfidence(s,r);return r;}
+function detailOverview(s){const r=recommendationFor(s);const aw=r.primaryAction.split(' ');const a1=aw[0],arest=aw.slice(1).join(' ');
  return `<div class="dsec-h">Decision summary</div>
   <div class="reccard">
-   <div class="recname"><div class="k">Recommended action</div><div class="v"><b>${a1}</b> ${arest}</div></div>
+   <div class="recname"><div class="k">Primary recommendation</div><div class="v"><b>${a1}</b> ${arest}</div><div class="rt" style="margin-top:6px">${r.pathway}</div></div>
    <div class="recrows">
-    <div class="recrow"><span class="ic">🏛️</span><span class="rk">Owner</span><span class="rv">${s.owner}</span></div>
-    <div class="recrow"><span class="ic">📅</span><span class="rk">Delivery timeframe</span><span class="rv">${DELIV[s.delivery]||s.delivery}</span></div>
-    <div class="recrow"><span class="ic">💲</span><span class="rk">Cost level</span><span class="rv">${COSTL[s.cost]||s.cost}</span></div>
+    <div class="recrow"><span class="ic">▣</span><span class="rk">Owner</span><span class="rv">${r.owner}</span></div>
+    <div class="recrow"><span class="ic">▣</span><span class="rk">Implementation type</span><span class="rv">${r.implementationType}</span></div>
+    <div class="recrow"><span class="ic">◷</span><span class="rk">Delivery</span><span class="rv">${DELIV[r.delivery]||r.delivery}</span></div>
+    <div class="recrow"><span class="ic">$</span><span class="rk">Cost</span><span class="rv">${COSTL[r.cost]||r.cost}</span></div>
     <div class="recrow"><span class="ic">◎</span><span class="rk">Priority score</span><span class="rv pri">${s.fhsr[decade]||'–'} / 100</span></div>
-    <div class="recrow"><span class="ic">◔</span><span class="rk">Confidence</span><span class="rv">${s.confidence}<span class="confbar">${[1,2,3].map(i=>`<i class="${i<=cN?'on':''}"></i>`).join('')}</span></span></div>
    </div>
   </div>
-  <div class="dsec-h">Rider feedback <span class="sm">· AI-structured demo</span></div>
-  <div class="fbchips">${s.feedback.map(f=>`<span class="alt">“${f}”</span>`).join('')}</div>
-  <button class="fbmore" id="fbMore">View all feedback →</button>
-  <div class="dsec-h">Why this action?</div>
-  <div class="whytxt">${s.regime==='suppressed'?`<b>${s.type}</b> station with heat concentrated on the <b>${s.dominant}</b> component during peak afternoon heat. ${s.dominant==='platform'?'Reflective roofing and a shade canopy cut radiant heat on the platform':s.dominant==='wait'?'More frequent, reliable service shortens the long exposed wait, with interim platform cooling for the time riders do wait':'Street trees and interim awnings shade the approach'} — helping retain the ${fmt(s.rides)} afternoon riders/day and heading off ${fmt(s.tripsLost['2050s'])} trips at risk by the 2050s.`:s.regime==='attractor'?`Ridership <b>rises</b> on hot days — a destination surge (beach/park), not thermal comfort. Size the station for the peak with seasonal shade, water and crowd-ready platforms rather than chasing lost trips.`:`No statistically significant heat response. Keep monitoring ridership and rider feedback; reassess each season before committing capital.`}</div>
+  <div class="dsec-h">Why this action?</div><div class="whytxt"><b>Diagnosis:</b> ${r.diagnosis}<br><b>Condition check:</b> ${r.conditionCheck}<br>${r.whyThis}</div>
+  <div class="dsec-h">Complement / alternative</div><div class="whytxt"><b>${r.complementaryAction}</b></div>
+  <div class="dsec-h">Why not the other pathway?</div><div class="whytxt">${r.whyNot}</div>
+  <div class="dsec-h">Decision confidence</div><div class="whytxt"><b>Diagnosis:</b> ${r.diagnosisConfidence} · <b>Intervention-fit:</b> ${r.interventionConfidence}<br>Decision-support confidence only; it does not claim scientific causal certainty.</div>
+  <div class="dsec-h">Rider evidence</div><div class="fbchips">${s.feedback.map(f=>`<span class="alt">“${f}”</span>`).join('')}</div><div class="whytxt" style="margin-top:8px">Illustrative supporting / validation evidence only.</div>
+  <div class="dsec-h">Impact</div><div class="whytxt">${fmt(s.tripsLost['2050s'])} future afternoon trips at risk / year by the 2050s where applicable.</div>
   <button class="reportbtn" id="openPath">View full station report <span style="font-size:12px">↗</span></button>`;}
 function detailEvidence(s){const rp=REGP[s.regime];const beta=(Math.log(1+s.penalty/100)/15*100).toFixed(3);
  return `<div class="dsec-h">Regression estimate</div>
@@ -747,15 +757,16 @@ function detailEvidence(s){const rp=REGP[s.regime];const beta=(Math.log(1+s.pena
   <div class="whytxt">Estimated by OLS of log afternoon ridership on hot-degrees above 80°F, controlling for day-of-week, month, year, holidays and precipitation. With |t| = ${Math.abs(s.t).toFixed(2)} ${Math.abs(s.t)>=1.96?'≥ 1.96, the response is <b>statistically significant</b>':'< 1.96, the response is <b>not significant</b>'} at the 5% level, classifying this station as <b>${rp[1].toLowerCase()}</b>. Neighborhood heat-vulnerability index: <b>${s.hvi}/5</b>.</div>
   <div class="dsec-h">Afternoon trips lost / year</div>
   <div class="decay">${Object.keys(DATA.ext).map(d=>`<div><div class="yr">${d}</div><div class="n">${s.tripsLost[d]?fmt(s.tripsLost[d]):'—'}</div></div>`).join('')}</div>`;}
-function detailInterventions(s){return `<div class="dsec-h">Evidence → action path</div>
-  <div class="pstep"><div class="pn">01 · EVIDENCE</div><div class="pt">${REGP[s.regime][1]} · ${s.penalty>0?'+':''}${s.penalty}% at 95°F</div><div class="pd">t = ${s.t.toFixed(2)} · ${s.confidence} confidence · ${fmt(s.rides)} afternoon riders/day</div></div>
-  <div class="pstep"><div class="pn">02 · DIAGNOSIS</div><div class="pt">${s.dominant.toUpperCase()}-dominant · ${s.type}</div><div class="pd">Burden index — walk ${s.walk} · wait ${s.wait} · platform ${s.platform}. Largest component sets the fix.</div></div>
-  <div class="pstep"><div class="pn">03 · ACTION</div><div class="pt">${s.action}</div><div class="pd">Best-fit intervention for a ${s.dominant}-dominant, ${s.type.toLowerCase()} station.</div></div>
-  <div class="pstep"><div class="pn">04 · IMPLEMENTATION</div><div class="pt">${s.owner} · ${DELIV[s.delivery]||s.delivery} · ${COSTL[s.cost]||s.cost}</div><div class="pd">Priority ${s.fhsr[decade]||'–'}/100 · ${fmt(s.tripsLost['2050s'])} afternoon trips at risk by the 2050s.</div></div>
+function detailInterventions(s){const r=recommendationFor(s);return `<div class="dsec-h">Evidence → diagnosis → action → implementation filter → validation</div>
+  <div class="pstep"><div class="pn">01 · EVIDENCE</div><div class="pt">${REGP[s.regime][1]} · ${s.penalty>0?'+':''}${s.penalty}% at 95°F</div><div class="pd">t = ${s.t.toFixed(2)} · ${fmt(s.rides)} afternoon riders/day</div></div>
+  <div class="pstep"><div class="pn">02 · DIAGNOSIS</div><div class="pt">${r.diagnosis}</div><div class="pd">Walk ${s.walk} · wait ${s.wait} · platform ${s.platform} · ${s.type}. ${r.conditionCheck}</div></div>
+  <div class="pstep"><div class="pn">03 · ACTION</div><div class="pt">${r.primaryAction}</div><div class="pd">${r.whyThis}</div></div>
+  <div class="pstep"><div class="pn">04 · IMPLEMENTATION FILTER</div><div class="pt">${r.owner} · ${r.implementationType} · ${DELIV[r.delivery]||r.delivery} · ${COSTL[r.cost]||r.cost}</div><div class="pd">Diagnosis confidence: ${r.diagnosisConfidence} · Intervention-fit: ${r.interventionConfidence}</div></div>
+  <div class="pstep"><div class="pn">05 · VALIDATION</div><div class="pt">Rider evidence + field observation</div><div class="pd">Structured rider feedback can validate, challenge, or increase confidence in the diagnosis before committing capital. Future measured platform / environmental data can refine it.</div></div>
   <button class="reportbtn" id="openPath">Open full decision path <span style="font-size:12px">↗</span></button>`;}
 function detailFeedback(s){return `<div class="dsec-h">Rider feedback <span class="sm">· AI-structured demo</span></div>
   <div class="fbchips">${s.feedback.map(f=>`<span class="alt">“${f}”</span>`).join('')}</div>
-  <div class="whytxt" style="margin-top:14px">These themes are <b>illustrative</b> — generated from this station's dominant <b>${s.dominant}</b> exposure to demonstrate the intake. In deployment they are replaced by structured, geo-tagged responses from the rider survey on the <b>Engage</b> tab, clustered by an LLM into recurring themes per station.</div>`;}
+  <div class="whytxt" style="margin-top:14px">These themes are <b>illustrative</b>. In production, rider responses would be structured and geo-tagged by station. <b>Role in the decision engine:</b> an LLM could cluster recurring themes; they may validate the modeled journey leg, challenge it, increase confidence, or trigger a field audit. The LLM does <b>not</b> autonomously select capital projects; the transparent recommendation framework remains the source of logic.</div>`;}
 function renderDetail(){const s=selected;const box=S('detail');
  if(!s){box.innerHTML='<div class="empty">Select a station on the map or table to see its heat diagnosis and recommended action.</div>';return;}
  const rp=REGP[s.regime];const rows=orderedRows();const idx=rows.findIndex(r=>r.label===s.label);
@@ -846,67 +857,72 @@ function buildDiagnosis(){if(dgBuilt)return;dgBuilt=true;const focus=ST.filter(s
 /* ---------- playbook ---------- */
 let pbBuilt=false;
 function buildPlaybook(){if(pbBuilt)return;pbBuilt=true;const p=DATA.play;
- const PLAY=[['--heat',p.elevated,'Full-sun elevated platform','Reflective cool-roof coating + a shade canopy over the platform — trees can’t reach up here.','N/W, J/Z, 7 lines.','MTA','Months · $$'],
- ['--amber',p.wait,'Long exposed wait','Shorten the wait itself — more frequent, more reliable service — and cool the unavoidable wait with platform shade / a hydration point on heat-alert days. MTA operations + facilities.','Halving a 10-min wait halves platform heat-exposure time.','MTA','Months · $$'],
- ['--heat',p.underground,'Underground furnace','Ventilation first, then radiant cooling / a thermal-energy network — NYC’s 2026 pilot.','Platforms hit 100°F+; reuses waste heat.','MTA','Years · $$$'],
- ['--cool',p.walk,'Bare, low-canopy walk','Street trees — cheapest, most effective cooling — plus interim awnings while they grow.','Tree shade ~3.2°C; limited by sidewalk width.','Parks / DOT','Years · $'],
- ['--cool',p.beach,'Beach surge terminal','Seasonal shade, water and crowd-ready platforms — cool the peak, don’t chase lost trips.','Rockaway A/S gain up to +78%.','MTA / Parks','Seasonal · $$']];
+ const PLAY=[['--heat',p.elevated,'Elevated / open','Primary: shade canopy + reflective roof. Complement: cool-roof coating or deployable shade.','Platform solar and radiant load dominate.','MTA Capital','Months · $$'],
+ ['--amber',p.wait,'Long / unreliable wait','Primary: service frequency + reliability + heat-day operations. Complement: platform cooling / hydration.','Exposure duration is the primary lever.','MTA Operations','Months · $$'],
+ ['--heat',p.underground,'Underground','Primary: ventilation + thermal management. Complement: heat-day ventilation operations / pilot cooling.','No solar load; thermal accumulation is the mechanism.','MTA Capital / Facilities','Years · $$$'],
+ ['--cool',p.walk,'Low-canopy approach','Primary: street trees + shaded approach. Complement: interim entrance shade.','Use an approach audit when the canopy proxy is not clearly exposed.','Parks / DOT','Years · $'],
+ ['--cool',p.beach,'Attractor surge','Primary: seasonal operations. Complement: queue management, hydration, temporary shade.','Cool the peak; do not chase lost trips.','MTA / Parks','Seasonal · $$']];
  S('play').innerHTML=PLAY.map(p=>`<div class="pl"><div class="ct" style="color:${css(p[0])}">${p[1]}<span class="d" style="background:${css(p[0])}"></span></div>
   <div><div class="nm">${p[2]}</div><div class="fx">${p[3]}</div><div class="ev">${p[4]}</div></div><div class="tags"><b>${p[5]}</b>${p[6]}</div></div>`).join('');
  setupTree();}
-function prescribeJS(reg,dom,ug){
- if(reg==='attractor')return['Seasonal shade + water + crowd readiness','MTA / Parks','Seasonal','$$'];
- if(reg==='neutral')return['Monitor + rider feedback','MTA','Monitor','$'];
- if(dom==='walk')return['Street trees + shaded approach','Parks / DOT','Years','$'];
- if(dom==='wait')return['Service frequency + platform cooling','MTA','Months','$$'];
- return ug?['Ventilation + thermal management','MTA','Years','$$$']:['Shade canopy + reflective roof','MTA','Months','$$'];}
-let tpath={l1:'sup',l2:'platform',l3:'elevated'};
+let tpath={l1:'sup',l2:'platform',l3:'elevated',l4:null};
 function treePathFromStation(s){if(!s)return;
- if(s.regime==='attractor')tpath={l1:'att',l2:null,l3:null};
- else if(s.regime==='neutral')tpath={l1:'no',l2:null,l3:null};
- else tpath={l1:'sup',l2:s.dominant,l3:s.dominant==='platform'?(s.type==='Underground'?'underground':'elevated'):null};}
+ const r=recommendationFor(s);
+ if(s.regime==='attractor')tpath={l1:'att',l2:null,l3:null,l4:r.conditionMet?'surge':'monitor'};
+ else if(s.regime==='neutral')tpath={l1:'no',l2:null,l3:null,l4:null};
+ else tpath={l1:'sup',l2:s.dominant,l3:s.dominant==='platform'?(s.type==='Underground'?'underground':'elevated'):null,l4:s.dominant==='walk'?(r.conditionMet?'exposed':'audit'):s.dominant==='wait'?(r.conditionMet?'long':'validate'):null};}
 function treeHTML(){return `
- <p class="dthint">Click a branch to trace it. The path for the selected station is highlighted; every station routes through this logic to one owned intervention.</p>
+ <p class="dthint">Click a branch to trace it. The selected station’s actual route is highlighted. This framework separates diagnosis from its implementation filter and validation evidence.</p>
  <div class="dtlevel"><div class="dtq">1 · Significant heat response?</div>
    <div class="dtopts">
      <button class="dopt" data-lvl="1" data-v="no">No · Monitor</button>
      <button class="dopt" data-lvl="1" data-v="att">Attractor · ridership&nbsp;↑</button>
      <button class="dopt" data-lvl="1" data-v="sup">Suppressed · ridership&nbsp;↓</button>
    </div></div>
- <div class="dtlevel" data-wrap="2"><div class="dtq">2 · Dominant heat burden?</div>
+ <div class="dtlevel" data-wrap="att"><div class="dtq">2 · Meaningful heat-day demand surge?</div><div class="dtopts"><button class="dopt" data-lvl="4" data-v="surge">Yes → seasonal readiness</button><button class="dopt" data-lvl="4" data-v="monitor">No → monitor demand</button></div></div>
+ <div class="dtlevel" data-wrap="2"><div class="dtq">2 · Physical / operational diagnosis: dominant burden?</div>
    <div class="dtopts">
-     <button class="dopt" data-lvl="2" data-v="walk">🚶 Walk</button>
-     <button class="dopt" data-lvl="2" data-v="wait">🕒 Wait</button>
-     <button class="dopt" data-lvl="2" data-v="platform">🚉 Platform</button>
+     <button class="dopt" data-lvl="2" data-v="walk">Walk → canopy / approach check</button>
+     <button class="dopt" data-lvl="2" data-v="wait">Wait → reliability check</button>
+     <button class="dopt" data-lvl="2" data-v="platform">Platform → structure check</button>
    </div></div>
- <div class="dtlevel" data-wrap="3"><div class="dtq">3 · Station type?</div>
+ <div class="dtlevel" data-wrap="3"><div class="dtq">3 · Condition check: station structure?</div>
    <div class="dtopts">
      <button class="dopt" data-lvl="3" data-v="elevated">Elevated / Open</button>
      <button class="dopt" data-lvl="3" data-v="underground">Underground</button>
    </div></div>
+ <div class="dtlevel" data-wrap="walk"><div class="dtq">3 · Low canopy / exposed approach?</div><div class="dtopts"><button class="dopt" data-lvl="4" data-v="exposed">Yes → trees + interim shade</button><button class="dopt" data-lvl="4" data-v="audit">No → approach audit</button></div></div>
+ <div class="dtlevel" data-wrap="wait"><div class="dtq">3 · Long / unreliable wait?</div><div class="dtopts"><button class="dopt" data-lvl="4" data-v="long">Yes → frequency + reliability</button><button class="dopt" data-lvl="4" data-v="validate">No → operational validation</button></div></div>
  <div class="dtout" id="dtOut"></div>`;}
 function renderTree(){const root=S('tree');if(!root||!root.querySelector('.dopt'))return;
- const w2=root.querySelector('[data-wrap="2"]'),w3=root.querySelector('[data-wrap="3"]');
+ const w2=root.querySelector('[data-wrap="2"]'),w3=root.querySelector('[data-wrap="3"]'),wa=root.querySelector('[data-wrap="att"]'),ww=root.querySelector('[data-wrap="walk"]'),wt=root.querySelector('[data-wrap="wait"]');
  w2.hidden=tpath.l1!=='sup';w3.hidden=!(tpath.l1==='sup'&&tpath.l2==='platform');
- root.querySelectorAll('.dopt').forEach(b=>{const on=(b.dataset.lvl==='1'&&tpath.l1===b.dataset.v)||(b.dataset.lvl==='2'&&tpath.l2===b.dataset.v)||(b.dataset.lvl==='3'&&tpath.l3===b.dataset.v);
+ wa.hidden=tpath.l1!=='att';
+ ww.hidden=!(tpath.l1==='sup'&&tpath.l2==='walk');wt.hidden=!(tpath.l1==='sup'&&tpath.l2==='wait');
+ root.querySelectorAll('.dopt').forEach(b=>{const on=(b.dataset.lvl==='1'&&tpath.l1===b.dataset.v)||(b.dataset.lvl==='2'&&tpath.l2===b.dataset.v)||(b.dataset.lvl==='3'&&tpath.l3===b.dataset.v)||(b.dataset.lvl==='4'&&tpath.l4===b.dataset.v);
    b.classList.toggle('on',on);b.classList.toggle('att',b.dataset.v==='att');});
  const reg=tpath.l1==='att'?'attractor':tpath.l1==='no'?'neutral':'suppressed';
  const out=S('dtOut');const isAtt=reg==='attractor';
  if(reg==='suppressed'&&!tpath.l2){out.innerHTML='<div class="dtcount">Pick a dominant burden to see the owned intervention.</div>';return;}
  if(reg==='suppressed'&&tpath.l2==='platform'&&!tpath.l3){out.innerHTML='<div class="dtcount">Pick a station type to see the owned intervention.</div>';return;}
- const ug=tpath.l3==='underground';const p=prescribeJS(reg,tpath.l2,ug);const aw=p[0].split(' ');
- const cnt=ST.filter(s=>{if(reg==='attractor')return s.regime==='attractor';if(reg==='neutral')return s.regime==='neutral';
+ const source=selected||ST[0];const virtual={...source,regime:reg,dominant:tpath.l2||source.dominant,type:tpath.l3==='underground'?'Underground':tpath.l3==='elevated'?'Elevated / Open':source.type};
+ if(reg==='attractor'){if(tpath.l4==='surge'){virtual.penalty=8;virtual.rides=Math.max(5000,Number(virtual.rides)||0);}else{virtual.penalty=0;virtual.rides=0;}}
+ if(tpath.l2==='walk')virtual.walk=tpath.l4==='exposed'?55:54;
+ if(tpath.l2==='wait')virtual.wait=tpath.l4==='long'?55:54;
+ const r=recommendationFor(virtual);
+ const cnt=ST.filter(s=>{if(reg==='attractor')return s.regime==='attractor'&&recommendationFor(s).primaryAction===r.primaryAction;if(reg==='neutral')return s.regime==='neutral';
    if(s.regime!=='suppressed')return false;if(tpath.l2&&s.dominant!==tpath.l2)return false;
-   if(tpath.l2==='platform'&&tpath.l3&&((s.type==='Underground')!==(tpath.l3==='underground')))return false;return true;}).length;
- out.innerHTML=`<div class="dtaction ${isAtt?'att':''}"><b>${aw[0]}</b> ${aw.slice(1).join(' ')}</div>
-   <div class="dtmeta"><span>Owner <b>${p[1]}</b></span><span>Delivery <b>${p[2]}</b></span><span>Cost <b>${p[3]}</b></span></div>
-   <div class="dtcount"><b>${cnt}</b> station${cnt===1?'':'s'} follow this path.<button class="dtshow" id="dtShow">Show on Dashboard →</button></div>`;
+   if(tpath.l2==='platform'&&tpath.l3&&((s.type==='Underground')!==(tpath.l3==='underground')))return false;return recommendationFor(s).primaryAction===r.primaryAction;}).length;
+ out.innerHTML=`<div class="dtaction ${isAtt?'att':''}"><b>${r.primaryAction}</b></div><div class="dtcount">${r.conditionCheck}<br>${r.whyThis}</div>
+   <div class="dtmeta"><span>Owner <b>${r.owner}</b></span><span>Type <b>${r.implementationType}</b></span><span>Delivery <b>${r.delivery}</b></span><span>Cost <b>${r.cost}</b></span></div>
+   <div class="dtcount"><b>${cnt}</b> station${cnt===1?'':'s'} follow this path. <b>Selected station path:</b> ${selected?recommendationFor(selected).pathway:'—'}<br>Diagnosis confidence: <b>${r.diagnosisConfidence}</b> · Intervention fit: <b>${r.interventionConfidence}</b><button class="dtshow" id="dtShow">Show on Dashboard →</button></div>`;
  const sh=S('dtShow');if(sh)sh.onclick=()=>tab('prioritize');}
 function setupTree(){const root=S('tree');root.innerHTML=treeHTML();treePathFromStation(selected);
  root.querySelectorAll('.dopt').forEach(b=>b.onclick=()=>{const lv=b.dataset.lvl,v=b.dataset.v;
-   if(lv==='1')tpath={l1:v,l2:v==='sup'?tpath.l2:null,l3:v==='sup'?tpath.l3:null};
-   else if(lv==='2'){tpath.l1='sup';tpath.l2=v;if(v!=='platform')tpath.l3=null;else if(!tpath.l3)tpath.l3=null;}
-   else tpath.l3=v;
+   if(lv==='1')tpath={l1:v,l2:v==='sup'?tpath.l2:null,l3:v==='sup'?tpath.l3:null,l4:v==='att'?(tpath.l4||'surge'):v==='sup'?tpath.l4:null};
+   else if(lv==='2'){tpath.l1='sup';tpath.l2=v;tpath.l3=v==='platform'?tpath.l3:null;tpath.l4=v==='walk'?(tpath.l4==='audit'?'audit':'exposed'):v==='wait'?(tpath.l4==='validate'?'validate':'long'):null;}
+   else if(lv==='3')tpath.l3=v;
+   else tpath.l4=v;
    renderTree();});
  renderTree();}
 
@@ -915,25 +931,26 @@ function runAI(){const q=S('aiPrompt').value.toLowerCase();let r=[...ST];
  if(q.includes('suppress'))r=r.filter(s=>s.regime==='suppressed');if(q.includes('attractor'))r=r.filter(s=>s.regime==='attractor');
  ['walk','wait','platform'].forEach(k=>{if(q.includes(k))r=r.filter(s=>s.dominant===k);});
  if(q.includes('underground'))r=r.filter(s=>s.type==='Underground');if(q.includes('elevated'))r=r.filter(s=>s.type.includes('Elevated'));
- if(q.includes('mta'))r=r.filter(s=>s.owner.includes('MTA'));if(q.includes('dot'))r=r.filter(s=>s.owner.includes('DOT'));
- if(q.includes('low-cost')||q.includes('low cost'))r=r.filter(s=>s.cost==='$');
- if(q.includes('within a year')||q.includes('one year')||q.includes('quick'))r=r.filter(s=>['Weeks','Months'].includes(s.delivery));
+ if(q.includes('mta'))r=r.filter(s=>recommendationFor(s).owner.includes('MTA'));if(q.includes('dot'))r=r.filter(s=>recommendationFor(s).owner.includes('DOT'));
+ if(q.includes('low-cost')||q.includes('low cost'))r=r.filter(s=>recommendationFor(s).cost==='$');
+ if(q.includes('within a year')||q.includes('one year')||q.includes('quick'))r=r.filter(s=>['Weeks','Months'].includes(recommendationFor(s).delivery));
  if(q.includes('high')&&q.includes('risk'))r=r.filter(s=>s.tier['2050s']==='red');
  r.sort((a,b)=>b.fhsr['2050s']-a.fhsr['2050s']);
  const m=S('aiResult');m.classList.add('show');
- m.innerHTML=`<div class="answer"><b>Planner:</b> ${r.length?`${r.length} stations match, ranked by 2050s future-heat risk.`:'No stations match all inferred criteria.'}</div>
-  <div class="rlist">${r.slice(0,6).map(s=>`<div class="ritem"><div><b>${s.name}</b> ${bullets(s.routes)}<div class="rt">${s.regime} · ${s.dominant} · ${s.owner} · ${s.delivery} · ${s.cost} · risk ${s.fhsr['2050s']}</div></div><button data-id="${s.label}">Open →</button></div>`).join('')}</div>`;
+ m.innerHTML=`<div class="answer"><b>Natural-language planner:</b> ${r.length?`${r.length} stations match, ranked by 2050s future-heat risk. Results query structured evidence and the transparent decision framework.`:'No stations match all inferred criteria.'}</div>
+  <div class="rlist">${r.slice(0,6).map(s=>{const x=recommendationFor(s);return `<div class="ritem"><div><b>${s.name}</b> ${bullets(s.routes)}<div class="rt">${s.regime} · ${s.dominant} · ${x.owner} · ${x.delivery} · ${x.cost} · risk ${s.fhsr['2050s']}</div></div><button data-id="${s.label}">Open →</button></div>`;}).join('')}</div>`;
  m.querySelectorAll('button').forEach(b=>b.onclick=()=>{tab('prioritize');select(b.dataset.id,true);S('aiOverlay').classList.remove('show');});}
 S('aiBtn').onclick=()=>S('aiOverlay').classList.add('show');S('closeAi').onclick=()=>S('aiOverlay').classList.remove('show');
 S('runAi').onclick=runAI;document.querySelectorAll('.examples button').forEach(b=>b.onclick=()=>{S('aiPrompt').value=b.dataset.q;runAI();});
 
 /* decision path modal (per station) */
-function showPath(s){S('pathOverlay').classList.add('show');S('pathTitle').textContent=`Decision path · ${s.name}`;
+function showPath(s){const r=recommendationFor(s);S('pathOverlay').classList.add('show');S('pathTitle').textContent=`Decision path · ${s.name}`;
  const step=(n,t,d)=>`<div style="border:1px solid var(--rule);padding:11px 13px;margin:8px 0"><b style="font-family:'Spline Sans Mono',monospace;font-size:11px;color:var(--heat)">${n}</b> &nbsp;<b>${t}</b><div class="rt" style="margin-top:4px">${d}</div></div>`;
- S('pathMount').innerHTML=step('01 Evidence',`${REGP[s.regime][1]} · ${s.penalty>0?'+':''}${s.penalty}% at 95°F`,`t=${s.t} · ${s.confidence} confidence · ${fmt(s.rides)} afternoon riders/day`)
-  +step('02 Diagnosis',`${s.dominant.toUpperCase()}-dominant`,`walk ${s.walk} · wait ${s.wait} · platform ${s.platform} · ${s.type}`)
-  +step('03 Action',s.action,`Best-fit intervention for a ${s.dominant}-dominant, ${s.type.toLowerCase()} station`)
-  +step('04 Implementation',`${s.owner} · ${s.delivery} · ${s.cost}`,`Priority ${s.fhsr['2050s']}/100 · ${fmt(s.tripsLost['2050s'])} afternoon trips at risk by the 2050s`);}
+ S('pathMount').innerHTML=step('01 Evidence',`${REGP[s.regime][1]} · ${s.penalty>0?'+':''}${s.penalty}% at 95°F`,`t=${s.t} · ${fmt(s.rides)} afternoon riders/day`)
+  +step('02 Diagnosis',r.pathway,`walk ${s.walk} · wait ${s.wait} · platform ${s.platform} · ${s.type}<br>${r.conditionCheck}`)
+  +step('03 Action',r.primaryAction,`${r.whyThis}<br>Complement: ${r.complementaryAction}`)
+  +step('04 Implementation Filter',`${r.owner} · ${r.implementationType} · ${r.delivery} · ${r.cost}`,`Diagnosis confidence: ${r.diagnosisConfidence} · Intervention fit: ${r.interventionConfidence}`)
+  +step('05 Validation','Rider feedback + field audit','Feedback can validate, challenge, or increase confidence in the diagnosis; future measured platform and environmental data can refine it.');}
 S('closePath').onclick=()=>S('pathOverlay').classList.remove('show');
 document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('show');}));
 
