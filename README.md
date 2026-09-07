@@ -22,11 +22,14 @@
 5. `compute_nyc.py` → `thi.json` (heat-penalty model + walk/wait/platform legs + Future Heat Service Risk + map geometry)
 6. Inject `thi.json` into `toolkit.template.html` → `toolkit.html`:
    ```python
-   import re, json
-   t = open('toolkit.template.html').read()
-   d = json.load(open('thi.json'))
+     import json
+     with open('toolkit.template.html', encoding='utf-8') as f:
+       t = f.read()
+     with open('thi.json', encoding='utf-8') as f:
+       d = json.load(f)
    for k in ('roads','region','parks','labels','rings'): d.pop(k, None)  # basemap now supplies these
-   open('toolkit.html','w').write(t.replace('__DATADATA__', json.dumps(d)))
+     with open('toolkit.html', 'w', encoding='utf-8', newline='\n') as f:
+       f.write(t.replace('__DATADATA__', json.dumps(d, ensure_ascii=False)))
    ```
 
 Other inputs in `data/`: `weather_daily.json` (Open-Meteo ERA5), `subway_structure.json` (MTA structure type), `hvi_zcta.json` (NYC Heat Vulnerability Index), `nyc_boroughs.geojson`.
