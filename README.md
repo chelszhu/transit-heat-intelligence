@@ -19,7 +19,7 @@
 2. `pull_ride_nyc.py` → `data/ridership_afternoon_nyc.json` (MTA hourly ridership, afternoons, by year)
 3. `pull_amen_nyc.py` → `data/trees_nyc.json`, `benches_nyc.json`, `shelters_nyc.json`
 4. `pull_layers.py` / `pull_region.py` / `extract_roads.py` → HVI polygons, boroughs, subway-line geometry
-5. `compute_nyc.py` → `thi.json` (heat-penalty model + walk/wait/platform legs + Future Heat Service Risk + map geometry)
+5. `compute_nyc.py` → `thi.json` (heat-penalty model + walk/wait/platform components + Future Heat Service Risk + map geometry)
 6. Inject `thi.json` into `toolkit.template.html` → `toolkit.html`:
    ```python
      import json
@@ -41,7 +41,7 @@ Per-station OLS of log afternoon ridership on apparent temperature above 80°F (
 The dashboard applies one station-level decision engine across the station card, interventions tab, methodology framework, and decision-path modal: **evidence → diagnosis → action → implementation filter → validation**. It maps the observed response, dominant journey burden, and explicit condition checks to a best-fit action, then shows owner, implementation type, delivery timeframe, and cost. Rider feedback is supporting/validation evidence, not an autonomous project selector. The natural-language planner is an interface over the structured station evidence and transparent rules; it does not invent interventions.
 
 ## Ownership model
-Platform interventions are generally owned by **MTA Capital / Facilities**: canopy and reflective-roof work at elevated/open stations, or ventilation and thermal management underground. The primary wait intervention is **MTA Operations** — reducing exposure duration through frequency, reliability, and heat-day operations; platform cooling or hydration is complementary. The **walk** leg is primarily **Parks / DOT**, with possible MTA coordination at station entrances. Attractor operations may be owned by **MTA / Parks**, depending on station and destination context.
+Platform interventions are generally owned by **MTA Capital / Facilities**: canopy and reflective-roof work at elevated/open stations, or ventilation and thermal management underground. The primary wait intervention is **MTA Operations** — reducing exposure duration through frequency, reliability, and heat-day operations; platform cooling or hydration is complementary. The **walk** component is primarily **Parks / DOT**, with possible MTA coordination at station entrances. Attractor operations may be owned by **MTA / Parks**, depending on station and destination context.
 
 ## Sharing
 `toolkit.html` is the whole app in one file — email it, drop it in shared storage, or host it on any static web server / GitHub Pages. Recipients just open it in a browser (online, for the map tiles). To hand off the reproducible project, share the `walkshed/` folder; to hand off only the result, share `build/toolkit.html` alone.
